@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: xpressgo
+      POSTGRES_USER: xpressgo
+      POSTGRES_PASSWORD: xpressgo
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  server:
+    build: ./server
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgres://xpressgo:xpressgo@postgres:5432/xpressgo?sslmode=disable
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_GATEWAY_TOKEN: ${TELEGRAM_GATEWAY_TOKEN:-}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      APP_URL: http://localhost:5173
+    ports:
+      - "8080:8080"
+
+  web:
+    build: ./web
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./web/src:/app/src
+
+  admin:
+    build: ./admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./admin/pages:/app/pages
+      - ./admin/components:/app/components
+      - ./admin/composables:/app/composables
+      - ./admin/layouts:/app/layouts
+
+volumes:
+  postgres-data:

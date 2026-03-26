@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS transactions;
+DROP TABLE IF EXISTS order_item_modifiers;
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS modifiers;
+DROP TABLE IF EXISTS modifier_groups;
+DROP TABLE IF EXISTS items;
+DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS store_staff;
+DROP TABLE IF EXISTS stores;
