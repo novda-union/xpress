@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/xpressgo/server/internal/config"
 	"github.com/xpressgo/server/internal/database"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type seedModifier struct {
@@ -43,6 +44,11 @@ type seedStore struct {
 	users       []seedUser
 	menu        seedMenu
 	orderPlan   seedOrderPlan
+}
+
+type seededStoreRefs struct {
+	storeID   string
+	branchIDs map[string]string
 }
 
 type seedBranch struct {
@@ -104,6 +110,11 @@ func main() {
 
 	ctx := context.Background()
 
+	hash, err := bcrypt.GenerateFromPassword([]byte("demo123"), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatalf("failed to hash password: %v", err)
+	}
+
 	stores := buildSeedStores()
 	if len(stores) == 0 {
 		log.Fatal("no seed stores configured")
@@ -115,12 +126,33 @@ func main() {
 		}
 		log.Printf("Store ready: %s (%s)", store.name, storeID)
 
+		refs := seededStoreRefs{
+			storeID:   storeID,
+			branchIDs: map[string]string{},
+		}
+
 		for _, branch := range store.branches {
 			branchID, err := ensureBranch(ctx, conn, storeID, branch)
 			if err != nil {
 				log.Fatalf("failed to ensure branch %s/%s: %v", store.code, branch.code, err)
 			}
 			log.Printf("Branch ready: %s (%s)", branch.name, branchID)
+			refs.branchIDs[branch.code] = branchID
+		}
+
+		for _, staff := range store.staff {
+			var branchID *string
+			if staff.branchCode != "" {
+				id, ok := refs.branchIDs[staff.branchCode]
+				if !ok {
+					log.Fatalf("failed to resolve branch %s for staff %s/%s", staff.branchCode, store.code, staff.staffCode)
+				}
+				branchID = &id
+			}
+
+			if err := ensureStaff(ctx, conn, storeID, branchID, staff.staffCode, staff.name, string(hash), staff.role, staff.isActive); err != nil {
+				log.Fatalf("failed to ensure staff %s/%s: %v", store.code, staff.staffCode, err)
+			}
 		}
 	}
 
@@ -153,6 +185,35 @@ func buildDemoBarStore() seedStore {
 			{code: "samarkand-darvoza", name: "Demo Bar - Samarkand Darvoza", address: "Qatortol St 2, Tashkent", lat: 41.3164, lng: 69.2128, isActive: true},
 			{code: "airport-road", name: "Demo Bar - Airport Road", address: "Kushbegi St 118, Tashkent", lat: 41.2578, lng: 69.2816, isActive: true},
 		},
+		staff: []seedStaff{
+			{staffCode: "admin", name: "Bar Director", role: "director", isActive: true},
+			{branchCode: "main", staffCode: "manager-main", name: "Main Branch Manager", role: "manager", isActive: true},
+			{branchCode: "downtown", staffCode: "manager-downtown", name: "Downtown Branch Manager", role: "manager", isActive: true},
+			{branchCode: "riverside", staffCode: "manager-riverside", name: "Riverside Branch Manager", role: "manager", isActive: true},
+			{branchCode: "chilonzor", staffCode: "manager-chilonzor", name: "Chilonzor Branch Manager", role: "manager", isActive: true},
+			{branchCode: "samarkand-darvoza", staffCode: "manager-samarkand", name: "Samarkand Darvoza Manager", role: "manager", isActive: true},
+			{branchCode: "airport-road", staffCode: "manager-airport", name: "Airport Road Manager", role: "manager", isActive: true},
+			{branchCode: "main", staffCode: "barista-main-1", name: "Main Barista 1", role: "barista", isActive: true},
+			{branchCode: "main", staffCode: "barista-main-2", name: "Main Barista 2", role: "barista", isActive: true},
+			{branchCode: "main", staffCode: "barista-main-3", name: "Main Barista 3", role: "barista", isActive: true},
+			{branchCode: "main", staffCode: "barista-main-4", name: "Main Barista 4", role: "barista", isActive: true},
+			{branchCode: "downtown", staffCode: "barista-downtown-1", name: "Downtown Barista 1", role: "barista", isActive: true},
+			{branchCode: "downtown", staffCode: "barista-downtown-2", name: "Downtown Barista 2", role: "barista", isActive: true},
+			{branchCode: "downtown", staffCode: "barista-downtown-3", name: "Downtown Barista 3", role: "barista", isActive: true},
+			{branchCode: "downtown", staffCode: "barista-downtown-4", name: "Downtown Barista 4", role: "barista", isActive: true},
+			{branchCode: "riverside", staffCode: "barista-riverside-1", name: "Riverside Barista 1", role: "barista", isActive: true},
+			{branchCode: "riverside", staffCode: "barista-riverside-2", name: "Riverside Barista 2", role: "barista", isActive: true},
+			{branchCode: "riverside", staffCode: "barista-riverside-3", name: "Riverside Barista 3", role: "barista", isActive: true},
+			{branchCode: "chilonzor", staffCode: "barista-chilonzor-1", name: "Chilonzor Barista 1", role: "barista", isActive: true},
+			{branchCode: "chilonzor", staffCode: "barista-chilonzor-2", name: "Chilonzor Barista 2", role: "barista", isActive: true},
+			{branchCode: "chilonzor", staffCode: "barista-chilonzor-3", name: "Chilonzor Barista 3", role: "barista", isActive: true},
+			{branchCode: "samarkand-darvoza", staffCode: "barista-samarkand-1", name: "Samarkand Barista 1", role: "barista", isActive: true},
+			{branchCode: "samarkand-darvoza", staffCode: "barista-samarkand-2", name: "Samarkand Barista 2", role: "barista", isActive: true},
+			{branchCode: "samarkand-darvoza", staffCode: "barista-samarkand-3", name: "Samarkand Barista 3", role: "barista", isActive: true},
+			{branchCode: "airport-road", staffCode: "barista-airport-1", name: "Airport Barista 1", role: "barista", isActive: true},
+			{branchCode: "airport-road", staffCode: "barista-airport-2", name: "Airport Barista 2", role: "barista", isActive: true},
+			{branchCode: "airport-road", staffCode: "barista-airport-3", name: "Airport Barista 3", role: "barista", isActive: true},
+		},
 		orderPlan: seedOrderPlan{totalOrders: 120},
 	}
 }
@@ -172,6 +233,21 @@ func buildUrbanCoffeeStore() seedStore {
 			{code: "yunusabad", name: "Urban Coffee - Yunusabad", address: "Yunusabad 17, Tashkent", lat: 41.3647, lng: 69.2965, isActive: true},
 			{code: "parkent", name: "Urban Coffee - Parkent", address: "Parkent St 12, Tashkent", lat: 41.2898, lng: 69.3212, isActive: true},
 		},
+		staff: []seedStaff{
+			{staffCode: "admin", name: "Coffee Director", role: "director", isActive: true},
+			{branchCode: "main", staffCode: "manager-main", name: "Main Branch Manager", role: "manager", isActive: true},
+			{branchCode: "yunusabad", staffCode: "manager-yunusabad", name: "Yunusabad Branch Manager", role: "manager", isActive: true},
+			{branchCode: "parkent", staffCode: "manager-parkent", name: "Parkent Branch Manager", role: "manager", isActive: true},
+			{branchCode: "main", staffCode: "barista-main-1", name: "Main Barista 1", role: "barista", isActive: true},
+			{branchCode: "main", staffCode: "barista-main-2", name: "Main Barista 2", role: "barista", isActive: true},
+			{branchCode: "main", staffCode: "barista-main-3", name: "Main Barista 3", role: "barista", isActive: true},
+			{branchCode: "yunusabad", staffCode: "barista-yunusabad-1", name: "Yunusabad Barista 1", role: "barista", isActive: true},
+			{branchCode: "yunusabad", staffCode: "barista-yunusabad-2", name: "Yunusabad Barista 2", role: "barista", isActive: true},
+			{branchCode: "yunusabad", staffCode: "barista-yunusabad-3", name: "Yunusabad Barista 3", role: "barista", isActive: true},
+			{branchCode: "parkent", staffCode: "barista-parkent-1", name: "Parkent Barista 1", role: "barista", isActive: true},
+			{branchCode: "parkent", staffCode: "barista-parkent-2", name: "Parkent Barista 2", role: "barista", isActive: true},
+			{branchCode: "parkent", staffCode: "barista-parkent-3", name: "Parkent Barista 3", role: "barista", isActive: false},
+		},
 		orderPlan: seedOrderPlan{totalOrders: 45},
 	}
 }
@@ -190,6 +266,21 @@ func buildStreetBurgerStore() seedStore {
 			{code: "main", name: "Street Burger - Main", address: "Bodomzor 3, Tashkent", lat: 41.3471, lng: 69.2872, isActive: true},
 			{code: "almazar", name: "Street Burger - Almazar", address: "Almazar 8, Tashkent", lat: 41.3502, lng: 69.2198, isActive: true},
 			{code: "sergeli", name: "Street Burger - Sergeli", address: "Sergeli 9, Tashkent", lat: 41.2259, lng: 69.2144, isActive: true},
+		},
+		staff: []seedStaff{
+			{staffCode: "admin", name: "Burger Director", role: "director", isActive: true},
+			{branchCode: "main", staffCode: "manager-main", name: "Main Branch Manager", role: "manager", isActive: true},
+			{branchCode: "almazar", staffCode: "manager-almazar", name: "Almazar Branch Manager", role: "manager", isActive: true},
+			{branchCode: "sergeli", staffCode: "manager-sergeli", name: "Sergeli Branch Manager", role: "manager", isActive: true},
+			{branchCode: "main", staffCode: "barista-main-1", name: "Main Barista 1", role: "barista", isActive: true},
+			{branchCode: "main", staffCode: "barista-main-2", name: "Main Barista 2", role: "barista", isActive: true},
+			{branchCode: "main", staffCode: "barista-main-3", name: "Main Barista 3", role: "barista", isActive: true},
+			{branchCode: "almazar", staffCode: "barista-almazar-1", name: "Almazar Barista 1", role: "barista", isActive: true},
+			{branchCode: "almazar", staffCode: "barista-almazar-2", name: "Almazar Barista 2", role: "barista", isActive: true},
+			{branchCode: "almazar", staffCode: "barista-almazar-3", name: "Almazar Barista 3", role: "barista", isActive: true},
+			{branchCode: "sergeli", staffCode: "barista-sergeli-1", name: "Sergeli Barista 1", role: "barista", isActive: true},
+			{branchCode: "sergeli", staffCode: "barista-sergeli-2", name: "Sergeli Barista 2", role: "barista", isActive: true},
+			{branchCode: "sergeli", staffCode: "barista-sergeli-3", name: "Sergeli Barista 3", role: "barista", isActive: true},
 		},
 		orderPlan: seedOrderPlan{totalOrders: 45},
 	}
@@ -264,17 +355,17 @@ func ensureUser(ctx context.Context, conn *pgx.Conn) error {
 	return err
 }
 
-func ensureStaff(ctx context.Context, conn *pgx.Conn, storeID string, branchID *string, staffCode, name, passwordHash, role string) error {
+func ensureStaff(ctx context.Context, conn *pgx.Conn, storeID string, branchID *string, staffCode, name, passwordHash, role string, isActive bool) error {
 	_, err := conn.Exec(ctx, `
-		INSERT INTO store_staff (store_id, branch_id, staff_code, name, password_hash, role)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO store_staff (store_id, branch_id, staff_code, name, password_hash, role, is_active)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (store_id, staff_code) DO UPDATE SET
 			branch_id = EXCLUDED.branch_id,
 			name = EXCLUDED.name,
 			password_hash = EXCLUDED.password_hash,
 			role = EXCLUDED.role,
-			is_active = true
-	`, storeID, branchID, staffCode, name, passwordHash, role)
+			is_active = EXCLUDED.is_active
+	`, storeID, branchID, staffCode, name, passwordHash, role, isActive)
 	return err
 }
 
