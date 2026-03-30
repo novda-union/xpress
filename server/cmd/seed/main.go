@@ -7,7 +7,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/xpressgo/server/internal/config"
 	"github.com/xpressgo/server/internal/database"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type seedModifier struct {
@@ -105,259 +104,25 @@ func main() {
 
 	ctx := context.Background()
 
-	hash, err := bcrypt.GenerateFromPassword([]byte("demo123"), bcrypt.DefaultCost)
-	if err != nil {
-		log.Fatalf("failed to hash password: %v", err)
-	}
-
 	stores := buildSeedStores()
 	if len(stores) == 0 {
 		log.Fatal("no seed stores configured")
 	}
-
-	store := stores[0]
-	_ = store
-
-	storeID, err := ensureStore(ctx, conn)
-	if err != nil {
-		log.Fatalf("failed to create store: %v", err)
-	}
-	log.Printf("Store ready: %s", storeID)
-
-	branchID, err := ensureBranch(ctx, conn, storeID)
-	if err != nil {
-		log.Fatalf("failed to create branch: %v", err)
-	}
-	log.Printf("Branch ready: %s", branchID)
-
-	if err := ensureStaff(ctx, conn, storeID, nil, "admin", "Bar Manager", string(hash), "director"); err != nil {
-		log.Fatalf("failed to create staff: %v", err)
-	}
-	branchScopedID := branchID
-	if err := ensureStaff(ctx, conn, storeID, &branchScopedID, "manager", "Branch Manager", string(hash), "manager"); err != nil {
-		log.Fatalf("failed to create branch staff: %v", err)
-	}
-	log.Println("Staff ready: admin, manager")
-
-	if err := ensureUser(ctx, conn); err != nil {
-		log.Fatalf("failed to create user: %v", err)
-	}
-	log.Println("Demo user ready")
-
-	categoryIDs := map[string]string{}
-	categoryNames := []string{"Cocktails", "Beer", "Snacks"}
-	for i, name := range categoryNames {
-		id, err := ensureCategory(ctx, conn, storeID, branchID, name, i)
+	for _, store := range stores {
+		storeID, err := ensureStore(ctx, conn, store)
 		if err != nil {
-			log.Fatalf("failed to create category %s: %v", name, err)
+			log.Fatalf("failed to ensure store %s: %v", store.code, err)
 		}
-		categoryIDs[name] = id
-	}
-	log.Printf("Created %d categories", len(categoryIDs))
+		log.Printf("Store ready: %s (%s)", store.name, storeID)
 
-	items := []seedItem{
-		{
-			category:    "Cocktails",
-			name:        "Mojito",
-			description: "Fresh lime, mint, rum, soda",
-			price:       45000,
-			modGroups: []seedModifierGroup{
-				{
-					name:          "Size",
-					selectionType: "single",
-					required:      true,
-					mods: []seedModifier{
-						{name: "Regular", price: 0},
-						{name: "Large", price: 15000},
-					},
-				},
-				{
-					name:          "Extras",
-					selectionType: "multiple",
-					required:      false,
-					mods: []seedModifier{
-						{name: "Extra mint", price: 3000},
-						{name: "Extra lime", price: 3000},
-						{name: "Double shot", price: 10000},
-					},
-				},
-			},
-		},
-		{
-			category:    "Cocktails",
-			name:        "Margarita",
-			description: "Tequila, lime juice, triple sec",
-			price:       50000,
-			modGroups: []seedModifierGroup{
-				{
-					name:          "Size",
-					selectionType: "single",
-					required:      true,
-					mods: []seedModifier{
-						{name: "Regular", price: 0},
-						{name: "Large", price: 15000},
-					},
-				},
-				{
-					name:          "Salt rim",
-					selectionType: "single",
-					required:      false,
-					mods: []seedModifier{
-						{name: "With salt", price: 0},
-						{name: "No salt", price: 0},
-					},
-				},
-			},
-		},
-		{
-			category:    "Cocktails",
-			name:        "Long Island",
-			description: "Five spirits, cola, lemon",
-			price:       55000,
-			modGroups: []seedModifierGroup{
-				{
-					name:          "Size",
-					selectionType: "single",
-					required:      true,
-					mods: []seedModifier{
-						{name: "Regular", price: 0},
-						{name: "Large", price: 20000},
-					},
-				},
-			},
-		},
-		{
-			category:    "Cocktails",
-			name:        "Aperol Spritz",
-			description: "Aperol, prosecco, soda",
-			price:       48000,
-		},
-		{
-			category:    "Beer",
-			name:        "Sarbast Lager",
-			description: "Local Uzbek lager, crisp and light",
-			price:       25000,
-			modGroups: []seedModifierGroup{
-				{
-					name:          "Size",
-					selectionType: "single",
-					required:      true,
-					mods: []seedModifier{
-						{name: "0.33L", price: 0},
-						{name: "0.5L", price: 10000},
-					},
-				},
-			},
-		},
-		{
-			category:    "Beer",
-			name:        "Pulsar IPA",
-			description: "Hoppy craft IPA",
-			price:       35000,
-			modGroups: []seedModifierGroup{
-				{
-					name:          "Size",
-					selectionType: "single",
-					required:      true,
-					mods: []seedModifier{
-						{name: "0.33L", price: 0},
-						{name: "0.5L", price: 12000},
-					},
-				},
-			},
-		},
-		{
-			category:    "Beer",
-			name:        "Corona",
-			description: "Mexican lager with lime",
-			price:       40000,
-		},
-		{
-			category:    "Snacks",
-			name:        "Nachos",
-			description: "Tortilla chips with cheese sauce and jalapenos",
-			price:       35000,
-			modGroups: []seedModifierGroup{
-				{
-					name:          "Toppings",
-					selectionType: "multiple",
-					required:      false,
-					mods: []seedModifier{
-						{name: "Extra cheese", price: 5000},
-						{name: "Guacamole", price: 8000},
-						{name: "Sour cream", price: 5000},
-					},
-				},
-			},
-		},
-		{
-			category:    "Snacks",
-			name:        "Chicken Wings",
-			description: "Crispy wings with sauce",
-			price:       42000,
-			modGroups: []seedModifierGroup{
-				{
-					name:          "Sauce",
-					selectionType: "single",
-					required:      true,
-					mods: []seedModifier{
-						{name: "BBQ", price: 0},
-						{name: "Buffalo", price: 0},
-						{name: "Honey Mustard", price: 0},
-					},
-				},
-				{
-					name:          "Portion",
-					selectionType: "single",
-					required:      true,
-					mods: []seedModifier{
-						{name: "6 pieces", price: 0},
-						{name: "12 pieces", price: 25000},
-					},
-				},
-			},
-		},
-		{
-			category:    "Snacks",
-			name:        "French Fries",
-			description: "Crispy golden fries",
-			price:       20000,
-			modGroups: []seedModifierGroup{
-				{
-					name:          "Dip",
-					selectionType: "single",
-					required:      false,
-					mods: []seedModifier{
-						{name: "Ketchup", price: 0},
-						{name: "Mayo", price: 0},
-						{name: "Cheese sauce", price: 3000},
-					},
-				},
-			},
-		},
-	}
-
-	for i, item := range items {
-		categoryID := categoryIDs[item.category]
-		itemID, err := ensureItem(ctx, conn, storeID, branchID, categoryID, item, i)
-		if err != nil {
-			log.Fatalf("failed to create item %s: %v", item.name, err)
-		}
-
-		for gi, mg := range item.modGroups {
-			groupID, err := ensureModifierGroup(ctx, conn, storeID, branchID, itemID, mg, gi)
+		for _, branch := range store.branches {
+			branchID, err := ensureBranch(ctx, conn, storeID, branch)
 			if err != nil {
-				log.Fatalf("failed to create modifier group %s: %v", mg.name, err)
+				log.Fatalf("failed to ensure branch %s/%s: %v", store.code, branch.code, err)
 			}
-
-			for mi, mod := range mg.mods {
-				if err := ensureModifier(ctx, conn, storeID, branchID, groupID, mod, mi); err != nil {
-					log.Fatalf("failed to create modifier %s: %v", mod.name, err)
-				}
-			}
+			log.Printf("Branch ready: %s (%s)", branch.name, branchID)
 		}
 	}
-	log.Printf("Created %d items with modifiers", len(items))
 
 	log.Println("Seed completed successfully!")
 }
@@ -380,44 +145,57 @@ func buildDemoBarStore() seedStore {
 		address:     "Amir Temur St 42, Tashkent",
 		phone:       "+998901234567",
 		logoURL:     "",
-		menu: seedMenu{
-			categories: []seedCategory{
-				{
-					name: "Cocktails",
-					items: []seedCatalogItem{
-						{
-							name:        "Mojito",
-							description: "Fresh lime, mint, rum, soda",
-							price:       45000,
-							modGroups: []seedModifierGroup{
-								{
-									name:          "Size",
-									selectionType: "single",
-									required:      true,
-									mods: []seedModifier{
-										{name: "Regular", price: 0},
-										{name: "Large", price: 15000},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+		branches: []seedBranch{
+			{code: "main", name: "Demo Bar - Main", address: "Amir Temur St 42, Tashkent", lat: 41.2995, lng: 69.2401, isActive: true},
+			{code: "downtown", name: "Demo Bar - Downtown", address: "Afrosiyob St 8, Tashkent", lat: 41.3057, lng: 69.2801, isActive: true},
+			{code: "riverside", name: "Demo Bar - Riverside", address: "Kichik Halqa Yuli 14, Tashkent", lat: 41.2871, lng: 69.2684, isActive: true},
+			{code: "chilonzor", name: "Demo Bar - Chilonzor", address: "Chilonzor 19 kvartal, Tashkent", lat: 41.2752, lng: 69.2038, isActive: true},
+			{code: "samarkand-darvoza", name: "Demo Bar - Samarkand Darvoza", address: "Qatortol St 2, Tashkent", lat: 41.3164, lng: 69.2128, isActive: true},
+			{code: "airport-road", name: "Demo Bar - Airport Road", address: "Kushbegi St 118, Tashkent", lat: 41.2578, lng: 69.2816, isActive: true},
 		},
 		orderPlan: seedOrderPlan{totalOrders: 120},
 	}
 }
 
 func buildUrbanCoffeeStore() seedStore {
-	return seedStore{}
+	return seedStore{
+		code:        "urbancoffee",
+		slug:        "urban-coffee",
+		name:        "Urban Coffee",
+		category:    "cafe",
+		description: "Specialty coffee and breakfast",
+		address:     "Buyuk Ipak Yuli 1, Tashkent",
+		phone:       "+998901234568",
+		logoURL:     "",
+		branches: []seedBranch{
+			{code: "main", name: "Urban Coffee - Main", address: "Buyuk Ipak Yuli 1, Tashkent", lat: 41.3142, lng: 69.2879, isActive: true},
+			{code: "yunusabad", name: "Urban Coffee - Yunusabad", address: "Yunusabad 17, Tashkent", lat: 41.3647, lng: 69.2965, isActive: true},
+			{code: "parkent", name: "Urban Coffee - Parkent", address: "Parkent St 12, Tashkent", lat: 41.2898, lng: 69.3212, isActive: true},
+		},
+		orderPlan: seedOrderPlan{totalOrders: 45},
+	}
 }
 
 func buildStreetBurgerStore() seedStore {
-	return seedStore{}
+	return seedStore{
+		code:        "streetburger",
+		slug:        "street-burger",
+		name:        "Street Burger",
+		category:    "fastfood",
+		description: "Burgers, chicken, and quick comfort food",
+		address:     "Bodomzor 3, Tashkent",
+		phone:       "+998901234569",
+		logoURL:     "",
+		branches: []seedBranch{
+			{code: "main", name: "Street Burger - Main", address: "Bodomzor 3, Tashkent", lat: 41.3471, lng: 69.2872, isActive: true},
+			{code: "almazar", name: "Street Burger - Almazar", address: "Almazar 8, Tashkent", lat: 41.3502, lng: 69.2198, isActive: true},
+			{code: "sergeli", name: "Street Burger - Sergeli", address: "Sergeli 9, Tashkent", lat: 41.2259, lng: 69.2144, isActive: true},
+		},
+		orderPlan: seedOrderPlan{totalOrders: 45},
+	}
 }
 
-func ensureStore(ctx context.Context, conn *pgx.Conn) (string, error) {
+func ensureStore(ctx context.Context, conn *pgx.Conn, store seedStore) (string, error) {
 	var id string
 	err := conn.QueryRow(ctx, `
 		INSERT INTO stores (
@@ -425,8 +203,8 @@ func ensureStore(ctx context.Context, conn *pgx.Conn) (string, error) {
 			telegram_group_chat_id, subscription_tier, commission_rate, is_active
 		)
 		VALUES (
-			'Demo Bar', 'demobar', 'demo-bar', 'bar', 'The best cocktails in Tashkent',
-			'Amir Temur St 42, Tashkent', '+998901234567', '',
+			$1, $2, $3, $4, $5,
+			$6, $7, $8,
 			NULL, 'free', 5.00, true
 		)
 		ON CONFLICT (code) DO UPDATE SET
@@ -443,14 +221,14 @@ func ensureStore(ctx context.Context, conn *pgx.Conn) (string, error) {
 			is_active = EXCLUDED.is_active,
 			updated_at = NOW()
 		RETURNING id
-	`).Scan(&id)
+	`, store.name, store.code, store.slug, store.category, store.description, store.address, store.phone, store.logoURL).Scan(&id)
 	if err != nil {
 		return "", err
 	}
 	return id, nil
 }
 
-func ensureBranch(ctx context.Context, conn *pgx.Conn, storeID string) (string, error) {
+func ensureBranch(ctx context.Context, conn *pgx.Conn, storeID string, branch seedBranch) (string, error) {
 	var id string
 	err := conn.QueryRow(ctx, `
 		INSERT INTO branches (
@@ -466,7 +244,7 @@ func ensureBranch(ctx context.Context, conn *pgx.Conn, storeID string) (string, 
 			is_active = EXCLUDED.is_active,
 			updated_at = NOW()
 		RETURNING id
-	`, storeID, "Demo Bar - Main", "Amir Temur St 42, Tashkent", 41.2995, 69.2401, "", nil).Scan(&id)
+	`, storeID, branch.name, branch.address, branch.lat, branch.lng, branch.bannerImageURL, branch.telegramGroupChatID, branch.isActive).Scan(&id)
 	if err != nil {
 		return "", err
 	}
