@@ -61,7 +61,7 @@ jobs:
         run: docker compose config >/dev/null
 
       - name: Validate Nginx
-        run: nginx -t -c "$GITHUB_WORKSPACE/infra/nginx/nginx.test.conf" -p "$GITHUB_WORKSPACE"
+        run: sudo nginx -t -c "$GITHUB_WORKSPACE/infra/nginx/nginx.test.conf" -p "$GITHUB_WORKSPACE"
 
   deploy:
     runs-on: ubuntu-latest
