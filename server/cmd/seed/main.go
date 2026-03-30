@@ -30,6 +30,70 @@ type seedItem struct {
 	modGroups   []seedModifierGroup
 }
 
+type seedStore struct {
+	code        string
+	slug        string
+	name        string
+	category    string
+	description string
+	address     string
+	phone       string
+	logoURL     string
+	branches    []seedBranch
+	staff       []seedStaff
+	users       []seedUser
+	menu        seedMenu
+	orderPlan   seedOrderPlan
+}
+
+type seedBranch struct {
+	code                string
+	name                string
+	address             string
+	lat                 float64
+	lng                 float64
+	bannerImageURL      string
+	telegramGroupChatID *int64
+	isActive            bool
+}
+
+type seedStaff struct {
+	branchCode string
+	staffCode  string
+	name       string
+	role       string
+	isActive   bool
+}
+
+type seedUser struct {
+	telegramID int64
+	phone      string
+	firstName  string
+	lastName   string
+	username   string
+}
+
+type seedMenu struct {
+	categories []seedCategory
+}
+
+type seedCategory struct {
+	name  string
+	items []seedCatalogItem
+}
+
+type seedCatalogItem struct {
+	name          string
+	description   string
+	price         int64
+	modGroups     []seedModifierGroup
+	unavailableAt map[string]bool
+}
+
+type seedOrderPlan struct {
+	totalOrders int
+}
+
 func main() {
 	cfg := config.Load()
 
@@ -45,6 +109,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to hash password: %v", err)
 	}
+
+	stores := buildSeedStores()
+	if len(stores) == 0 {
+		log.Fatal("no seed stores configured")
+	}
+
+	store := stores[0]
+	_ = store
 
 	storeID, err := ensureStore(ctx, conn)
 	if err != nil {
@@ -288,6 +360,61 @@ func main() {
 	log.Printf("Created %d items with modifiers", len(items))
 
 	log.Println("Seed completed successfully!")
+}
+
+func buildSeedStores() []seedStore {
+	return []seedStore{
+		buildDemoBarStore(),
+		buildUrbanCoffeeStore(),
+		buildStreetBurgerStore(),
+	}
+}
+
+func buildDemoBarStore() seedStore {
+	return seedStore{
+		code:        "demobar",
+		slug:        "demo-bar",
+		name:        "Demo Bar",
+		category:    "bar",
+		description: "The best cocktails in Tashkent",
+		address:     "Amir Temur St 42, Tashkent",
+		phone:       "+998901234567",
+		logoURL:     "",
+		menu: seedMenu{
+			categories: []seedCategory{
+				{
+					name: "Cocktails",
+					items: []seedCatalogItem{
+						{
+							name:        "Mojito",
+							description: "Fresh lime, mint, rum, soda",
+							price:       45000,
+							modGroups: []seedModifierGroup{
+								{
+									name:          "Size",
+									selectionType: "single",
+									required:      true,
+									mods: []seedModifier{
+										{name: "Regular", price: 0},
+										{name: "Large", price: 15000},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		orderPlan: seedOrderPlan{totalOrders: 120},
+	}
+}
+
+func buildUrbanCoffeeStore() seedStore {
+	return seedStore{}
+}
+
+func buildStreetBurgerStore() seedStore {
+	return seedStore{}
 }
 
 func ensureStore(ctx context.Context, conn *pgx.Conn) (string, error) {
