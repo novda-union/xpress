@@ -327,6 +327,14 @@ This workflow is advisory only. The user decides whether to apply the suggested 
 - Do not commit ignored local tooling folders like `.agents/` and `.claude/`
 - Do not commit generated runtime artifacts unless there is a deliberate reason
 - Keep commits scoped to the change being made
+- Use scoped conventional-style commit messages:
+  - format: `<type>(<scope>): <short summary>`
+  - preferred types: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`
+  - examples:
+    - `feat(auth): auth is working`
+    - `fix(middleware): new check added`
+    - `docs(workflow): new pipeline is working`
+    - `fix(ui): submit button is enlarged`
 - Check `git status` before and after edits
 - Avoid reverting unrelated user changes
 
