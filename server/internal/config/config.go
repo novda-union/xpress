@@ -24,7 +24,7 @@ func Load() *Config {
 		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
 		TelegramGateway:  getEnv("TELEGRAM_GATEWAY_TOKEN", ""),
 		JWTSecret:        getEnv("JWT_SECRET", "dev-secret-change-me"),
-		AppURL:           getEnv("APP_URL", "https://xpressgo.home.arpa"),
+		AppURL:           getEnv("APP_URL", "https://customer.novdaunion.uz"),
 		Port:             getEnv("PORT", "8080"),
 	}
 }
