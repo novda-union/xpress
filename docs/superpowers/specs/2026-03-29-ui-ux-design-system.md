@@ -51,12 +51,18 @@ The mini app builds on **Telegram's CSS variables** so it automatically adapts t
 
 ### 1.2 Typography
 
-**Font:** `Inter` — best mobile readability, universally available, clean at all sizes.
+**Fonts:** `Inter Variable` for body and controls, with `Geist Variable` available for headings and hero accents.
 
 ```css
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist";
+
+font-family: 'Inter Variable', -apple-system, BlinkMacSystemFont, sans-serif;
 ```
+
+- `Inter Variable` remains the default mini app font
+- `Geist Variable` may be used for prominent headings and display copy
+- Telegram theme variables still remain the primary adaptation layer for dark and light appearance
 
 **Type Scale:**
 
@@ -172,19 +178,25 @@ Keep shadows subtle — they work on both dark and light Telegram themes.
 
 #### Home Screen — Map/List Toggle
 
+**Current implementation note:**
+
+- the discovery view toggle now floats near the bottom center for better thumb reach
+- the top bar remains focused on discovery context rather than carrying the toggle itself
+- map and list views still share one discovery state and only the presentation swaps
+
 **Top Bar:**
 ```
 ┌─────────────────────────────────┐
-│  Xpressgo             [Map][List]│  — logo left, toggle right
+│  Xpressgo                       │  — logo and discovery context
 └─────────────────────────────────┘
 ```
 
 Toggle component:
-- Container: `bg-[var(--tg-theme-secondary-bg-color)]` rounded-full, `p-1`
-- Each pill: `px-4 py-1.5` height 32px, rounded-full
-- Active: `bg-[var(--xp-brand)] text-white` shadow-sm
-- Transition: `150ms ease-out` on background and color
-- Icons: `Map` and `List` from Lucide, 14px, left of label
+- Container: floating glass panel with blur, rounded-full border, and elevated shadow
+- Each segment: icon-first control with minimum `44px` touch target
+- Active: sliding `var(--xp-brand)` indicator with white active icon color
+- Transition: spring-like indicator movement plus eased color change
+- Icons: `Map` and `LayoutList` from Lucide
 
 **Map View:**
 - MapLibre fills the remaining screen height below the top bar
@@ -500,40 +512,37 @@ Triggered by tapping a marker. Slides up from bottom.
 
 ## Part 2: Admin Panel (Nuxt.js 3 + Tailwind + shadcn-vue)
 
+**Implementation note:**
+
+- the admin panel now has a concrete shared component layer in `admin/components/ui`
+- pages and domain components should compose shared sidebar, card, button, input, select, sheet, avatar, and tooltip primitives
+- avoid reintroducing bespoke one-off UI patterns when an existing shared primitive already fits
+
 ### 2.1 Color System
 
 ```css
-/* Base */
---admin-bg:           #F8FAFC;   /* page background (slate-50) */
---admin-surface:      #FFFFFF;   /* cards, panels */
---admin-surface-2:    #F1F5F9;   /* secondary surfaces, table striping */
---admin-border:       #E2E8F0;   /* all borders (slate-200) */
-
-/* Text */
---admin-text:         #0F172A;   /* primary text (slate-900) */
---admin-text-muted:   #64748B;   /* secondary text (slate-500) */
---admin-text-subtle:  #94A3B8;   /* placeholder, disabled (slate-400) */
-
-/* Brand */
---admin-accent:       #6366F1;   /* indigo-500 — primary CTA, active nav, badges */
---admin-accent-bg:    #EEF2FF;   /* indigo-50 — badge backgrounds */
---admin-accent-hover: #4F46E5;   /* indigo-600 — button hover */
-
-/* Status */
---admin-new:          #3B82F6;   /* blue — new orders column */
---admin-new-bg:       #EFF6FF;
---admin-preparing:    #F59E0B;   /* amber — preparing column */
---admin-preparing-bg: #FFFBEB;
---admin-ready:        #22C55E;   /* green — ready column */
---admin-ready-bg:     #F0FDF4;
-
---admin-success:      #22C55E;
---admin-warning:      #F59E0B;
---admin-error:        #EF4444;
---admin-director:     #8B5CF6;   /* purple — director role badge */
---admin-manager:      #6366F1;   /* indigo — manager role badge */
---admin-barista:      #06B6D4;   /* cyan — barista role badge */
+--background:                 oklch(1 0 0);
+--foreground:                 oklch(0.145 0 0);
+--card:                       oklch(1 0 0);
+--card-foreground:            oklch(0.145 0 0);
+--primary:                    oklch(0.585 0.226 264);
+--primary-foreground:         oklch(0.985 0 0);
+--secondary:                  oklch(0.97 0 0);
+--secondary-foreground:       oklch(0.205 0 0);
+--muted:                      oklch(0.97 0 0);
+--muted-foreground:           oklch(0.556 0 0);
+--border:                     oklch(0.922 0 0);
+--input:                      oklch(0.922 0 0);
+--ring:                       oklch(0.585 0.226 264);
+--sidebar:                    oklch(0.985 0 0);
+--sidebar-foreground:         oklch(0.145 0 0);
+--sidebar-primary:            oklch(0.585 0.226 264);
+--sidebar-primary-foreground: oklch(0.985 0 0);
+--sidebar-accent:             oklch(0.95 0.02 264);
+--sidebar-accent-foreground:  oklch(0.585 0.226 264);
 ```
+
+These tokens are consumed through Tailwind and shadcn-vue primitives rather than bespoke `--admin-*` utility classes.
 
 ### 2.2 Typography
 

@@ -182,6 +182,7 @@ Important directories:
 - `web/src/components/discovery`
 - `web/src/components/menu`
 - `web/src/components/cart`
+- `web/src/components/ui`
 - `web/src/hooks`
 - `web/src/store`
 - `web/src/lib`
@@ -192,6 +193,7 @@ Important state/detail:
 - discovery is location-based and category-filtered
 - map UI is lazy loaded
 - routes are lazy loaded for smaller initial bundles
+- shared UI primitives live in `web/src/components/ui`
 
 ## Admin
 
