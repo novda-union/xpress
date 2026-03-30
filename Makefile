@@ -1,4 +1,4 @@
-.PHONY: up down restart fresh logs migrate seed server web admin docs-check docs-refresh quality quality-fix quality-server quality-web quality-admin fmt fmt-check lint typecheck test
+.PHONY: up down restart fresh logs wait-db migrate seed server web admin docs-check docs-refresh quality quality-fix quality-server quality-web quality-admin fmt fmt-check lint typecheck test
 
 up:
 	docker compose up -d
@@ -16,13 +16,23 @@ fresh:
 	$(MAKE) migrate
 	$(MAKE) seed
 
+wait-db:
+	@printf '%s' 'Waiting for postgres'
+	@until docker compose exec -T postgres pg_isready -U xpressgo -d xpressgo >/dev/null 2>&1; do \
+		printf '%s' '.'; \
+		sleep 1; \
+	done; \
+	printf '\n'
+
 logs:
 	docker compose logs -f
 
 migrate:
+	$(MAKE) wait-db
 	cd server && go run cmd/migrate/main.go
 
 seed:
+	$(MAKE) wait-db
 	cd server && go run cmd/seed/main.go
 
 server:

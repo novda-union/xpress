@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/xpressgo/server/internal/config"
+	"github.com/xpressgo/server/internal/database"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -32,7 +33,7 @@ type seedItem struct {
 func main() {
 	cfg := config.Load()
 
-	conn, err := pgx.Connect(context.Background(), cfg.DatabaseURL)
+	conn, err := database.Open(context.Background(), cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
