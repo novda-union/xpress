@@ -49,11 +49,9 @@ make fresh
    - `admin/.output`
    - `server/tmp`
    - `server/bin`
-5. ensures the local HTTPS CA and cert exist for `xpressgo.home.arpa`
-6. rebuilds and starts the full Docker stack, including the HTTPS reverse proxy
-7. runs database migrations
-8. runs the seed command
-9. prints the current laptop LAN IP and the phone remap reminder for `xpressgo.home.arpa`
+5. rebuilds and starts the full Docker stack
+6. runs database migrations
+7. runs the seed command
 
 After `make fresh`, the project is running again from a fully clean local state.
 
@@ -137,28 +135,58 @@ Use this when you suspect stale local state or want to reset everything:
 
 1. `make fresh`
 2. confirm the apps are reachable:
-   - mini app: `https://xpressgo.home.arpa`
+   - mini app: local Docker/Vite endpoint
    - admin: `http://localhost:3000`
    - server: `http://localhost:8080`
 3. continue development
 4. `make quality`
 
-### Local HTTPS Mini App Flow
+### VPS Deployment Hosts
 
-The customer-facing mini app now runs through a local HTTPS reverse proxy at `https://xpressgo.home.arpa`.
+Production-style deployment uses three public hosts:
 
-- `make up`, `make restart`, and `make fresh` ensure the local CA and cert exist before starting the stack.
-- The phone and Telegram Mini App should use `https://xpressgo.home.arpa`, not the raw Vite port.
-- The proxy terminates HTTPS on `443` and forwards:
-  - mini app traffic to the Vite app on `5173`
-  - API and WebSocket traffic to the Go server on `8080`
-- `make up` and `make fresh` print the current laptop LAN IP and remind you to map `xpressgo.home.arpa` to that IP on the phone after changing Wi-Fi networks.
+- `customer.novdaunion.uz`
+  - customer mini app frontend
+- `admin.novdaunion.uz`
+  - admin panel frontend
+- `srvr.novdaunion.uz`
+  - backend API and WebSocket origin
 
-One-time device setup:
+Both frontends call the same backend origin:
 
-1. Trust the local CA at `.local-certs/rootCA.pem` on each test device.
-2. Map `xpressgo.home.arpa` to the laptop's current LAN IP on the laptop and phone.
-3. Open Telegram and launch the Mini App from the bot.
+- `https://srvr.novdaunion.uz`
+
+The Telegram bot should open:
+
+- `https://customer.novdaunion.uz`
+
+### CI/CD Workflow
+
+Deployments are automated on every push to `main`, but only after the quality gate passes with zero errors.
+
+CI gate:
+
+- `make quality`
+- `make test`
+- Docker Compose config validation
+- Nginx config validation
+
+Only if those checks pass does GitHub Actions deploy to the VPS over SSH.
+
+### VPS Operator Flow
+
+1. Point DNS for `customer.novdaunion.uz`, `admin.novdaunion.uz`, and `srvr.novdaunion.uz` to the VPS.
+2. Install Docker Engine, Docker Compose plugin, Nginx, Let's Encrypt tooling, and Go on the VPS.
+3. Clone the repo to the deploy path, for example `/opt/xpressgo`.
+4. Create `infra/deploy/vps.env` from `infra/deploy/vps.env.example`.
+5. Install the Nginx host configs from `infra/nginx/`.
+6. Issue TLS certificates for the three public domains.
+7. Add GitHub Actions deploy secrets:
+   - `DEPLOY_HOST`
+   - `DEPLOY_USER`
+   - `DEPLOY_PORT`
+   - `DEPLOY_SSH_KEY`
+8. Push to `main` and let the pipeline deploy.
 
 ### App-Only Local Flow
 
@@ -217,4 +245,3 @@ This workflow is advisory only. It suggests likely stale docs; it does not edit 
 - `make restart` is also non-destructive.
 - `make fresh` is intentionally destructive and will wipe the local PostgreSQL data volume.
 - If you need a true clean local environment, use `make fresh`, not `make restart`.
-- `.local-certs/` is local-only runtime state and should remain untracked.
