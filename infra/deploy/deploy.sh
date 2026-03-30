@@ -29,7 +29,15 @@ git reset --hard origin/master
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T server ./migrate
 
-curl --fail --silent --show-error "$HEALTH_URL" >/dev/null
+echo "waiting for server to be ready..."
+for i in $(seq 1 30); do
+  if curl --fail --silent --show-error "$HEALTH_URL" >/dev/null 2>&1; then
+    echo "server is ready"
+    break
+  fi
+  [ "$i" -eq 30 ] && { echo "server did not become ready in time"; exit 1; }
+  sleep 2
+done
 curl --fail --silent --show-error "https://customer.novdaunion.uz/" >/dev/null
 curl --fail --silent --show-error "https://admin.novdaunion.uz/" >/dev/null
 
