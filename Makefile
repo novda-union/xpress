@@ -1,4 +1,4 @@
-.PHONY: up down restart fresh logs migrate seed server web admin quality quality-fix quality-server quality-web quality-admin fmt fmt-check lint typecheck test
+.PHONY: up down restart fresh logs migrate seed server web admin docs-check docs-refresh quality quality-fix quality-server quality-web quality-admin fmt fmt-check lint typecheck test
 
 up:
 	docker compose up -d
@@ -33,6 +33,12 @@ web:
 
 admin:
 	cd admin && npm run dev
+
+docs-check:
+	python3 scripts/docs/docs_check.py
+
+docs-refresh:
+	python3 scripts/docs/docs_refresh.py
 
 quality: quality-server quality-web quality-admin
 

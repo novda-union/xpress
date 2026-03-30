@@ -1,0 +1,125 @@
+{
+  "documents": {
+    "readme": {
+      "path": "README.md",
+      "class": "runbook",
+      "owns": [
+        "runtime-workflow",
+        "operator-commands",
+        "local-development-flow"
+      ]
+    },
+    "agents": {
+      "path": "AGENTS.md",
+      "class": "reflection",
+      "owns": [
+        "architecture-reflection",
+        "repo-rules",
+        "shared-patterns",
+        "implementation-guidance"
+      ]
+    },
+    "quality": {
+      "path": "docs/code-quality-tooling.md",
+      "class": "runbook",
+      "owns": [
+        "quality-workflow",
+        "lint-and-build-flow"
+      ]
+    },
+    "branches_discovery_spec": {
+      "path": "docs/superpowers/specs/2026-03-29-branches-discovery-design.md",
+      "class": "spec",
+      "owns": [
+        "branch-discovery",
+        "branch-scope",
+        "ordering-flow"
+      ]
+    },
+    "design_system_spec": {
+      "path": "docs/superpowers/specs/2026-03-29-ui-ux-design-system.md",
+      "class": "spec",
+      "owns": [
+        "design-system",
+        "shared-ui-patterns"
+      ]
+    },
+    "doc_maintenance_spec": {
+      "path": "docs/superpowers/specs/2026-03-30-documentation-maintenance-and-reflection-design.md",
+      "class": "spec",
+      "owns": [
+        "documentation-maintenance",
+        "reflection-workflow"
+      ]
+    }
+  },
+  "change_families": {
+    "runtime": {
+      "paths": [
+        "Makefile",
+        "docker-compose.yml"
+      ],
+      "tags": [
+        "runtime-workflow",
+        "operator-commands"
+      ]
+    },
+    "quality": {
+      "paths": [
+        "scripts/quality/",
+        "server/.golangci.yml",
+        "web/package.json",
+        "admin/package.json",
+        "admin/eslint.config.mjs",
+        "docs/code-quality-tooling.md"
+      ],
+      "tags": [
+        "quality-workflow",
+        "lint-and-build-flow"
+      ]
+    },
+    "backend_architecture": {
+      "paths": [
+        "server/internal/handler/",
+        "server/internal/middleware/",
+        "server/internal/service/",
+        "server/internal/repository/",
+        "server/migrations/"
+      ],
+      "tags": [
+        "architecture-reflection",
+        "branch-scope",
+        "public-api",
+        "permissions"
+      ]
+    },
+    "web_architecture": {
+      "paths": [
+        "web/src/App.tsx",
+        "web/src/pages/",
+        "web/src/components/",
+        "web/src/store/",
+        "web/vite.config.ts"
+      ],
+      "tags": [
+        "architecture-reflection",
+        "shared-ui-patterns",
+        "branch-discovery"
+      ]
+    },
+    "admin_architecture": {
+      "paths": [
+        "admin/layouts/",
+        "admin/pages/",
+        "admin/components/",
+        "admin/composables/",
+        "admin/types/"
+      ],
+      "tags": [
+        "architecture-reflection",
+        "shared-ui-patterns",
+        "permissions"
+      ]
+    }
+  }
+}

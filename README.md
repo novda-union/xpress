@@ -111,6 +111,13 @@ These run apps directly from the host machine instead of Docker.
 - `make test`
   - Run server tests.
 
+### Documentation Advisory Targets
+
+- `make docs-check`
+  - Analyze the current diff and suggest which docs may need review.
+- `make docs-refresh`
+  - Run a broader reflection pass across the tracked codebase and suggest long-lived docs to review.
+
 ## Suggested Project Run Flow
 
 ### Most Common Daily Flow
@@ -148,6 +155,42 @@ make server
 make web
 make admin
 ```
+
+## Documentation Maintenance
+
+Use the documentation workflow when a change affects architecture, runtime commands, permissions, shared UI patterns, quality tooling, or any other long-lived repo behavior.
+
+Primary tools:
+
+- `make docs-check`
+  - diff-based advisory review for the current working tree
+- `make docs-refresh`
+  - broader reflection review against the current tracked codebase
+- `docs-sync` skill
+  - deeper advisory analysis when the change is substantial and you want richer doc-routing suggestions
+
+Recommended order after meaningful changes:
+
+1. run `make quality`
+2. run `make docs-check`
+3. if the change is substantial, run `make docs-refresh`
+4. if you need a more targeted advisory review, run the `docs-sync` skill
+5. decide whether to update `README.md`, `AGENTS.md`, specs, plans, or workflow docs
+
+Common document targets:
+
+- `README.md`
+  - runtime commands, operator flow, local development workflow
+- `AGENTS.md`
+  - architecture reflection, repo rules, agent guidance, shared implementation patterns
+- `docs/code-quality-tooling.md`
+  - lint, build, verification, and autofix workflow
+- `docs/superpowers/specs/`
+  - intended product or architecture behavior
+- `docs/superpowers/plans/`
+  - implementation sequencing, when the plan itself changes
+
+This workflow is advisory only. It suggests likely stale docs; it does not edit them automatically.
 
 ## Notes
 

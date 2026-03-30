@@ -270,6 +270,58 @@ Detailed quality usage is documented in:
 
 - [docs/code-quality-tooling.md](/home/dasturchioka/work/projects/xpressgo/docs/code-quality-tooling.md)
 
+## Documentation Maintenance
+
+Use the advisory documentation workflow when a change affects architecture, workflow, shared patterns, or long-lived behavior.
+
+Document ownership and routing live in:
+
+- [docs/registry.yml](/home/dasturchioka/work/projects/xpressgo/docs/registry.yml)
+
+Primary advisory tooling:
+
+- `docs-sync` skill
+- `make docs-check`
+- `make docs-refresh`
+
+Default workflow:
+
+1. run `make quality`
+2. run `make docs-check`
+3. if the change is architecture-level, repo-wide, or a large workflow shift, run `make docs-refresh`
+4. if the routing is still ambiguous, use the `docs-sync` skill for a deeper advisory pass
+5. decide whether to update `README.md`, `AGENTS.md`, `docs/code-quality-tooling.md`, specs, or plans
+
+What each tool is for:
+
+- `make docs-check`
+  - current diff review
+  - best for normal post-change doc triage
+- `make docs-refresh`
+  - broader reflection pass over the tracked codebase
+  - best after larger refactors, new subsystems, or significant architecture changes
+- `docs-sync` skill
+  - deeper advisory analysis
+  - best when you want a tighter recommendation about which docs should change and why
+
+Typical routing:
+
+- runtime, Docker, or Makefile changes:
+  - review `README.md`
+  - usually review `AGENTS.md`
+- auth, permissions, schema, routing, or scope changes:
+  - review `AGENTS.md`
+  - review relevant spec files
+- quality tooling changes:
+  - review `docs/code-quality-tooling.md`
+  - review `README.md`
+  - possibly review `AGENTS.md`
+- major UI or shared pattern changes:
+  - review relevant specs
+  - review `AGENTS.md`
+
+This workflow is advisory only. The user decides whether to apply the suggested documentation changes.
+
 ## Git Rules
 
 - Do not commit ignored local tooling folders like `.agents/` and `.claude/`

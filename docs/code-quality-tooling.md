@@ -69,6 +69,27 @@ Use the root `Makefile` when you want one entry point.
 - `make fmt`
 - `make fmt-check`
 
+## Documentation Follow-Up
+
+After a substantial architecture, workflow, or quality-tooling change:
+
+1. run the relevant quality commands
+2. run the advisory documentation workflow
+3. review which docs likely need updates before committing
+
+Advisory tooling:
+
+- `docs-sync` skill
+- `make docs-check`
+- `make docs-refresh`
+
+Likely docs to review:
+
+- `README.md`
+- `AGENTS.md`
+- `docs/superpowers/specs/`
+- `docs/superpowers/plans/`
+
 ## Suggested Working Order
 
 This is the recommended local order when you are making changes.
