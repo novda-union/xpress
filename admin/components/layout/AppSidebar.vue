@@ -1,6 +1,6 @@
 <template>
-  <aside class="hidden lg:flex lg:w-60 xl:w-64 flex-col border-r border-[var(--admin-border)] bg-[var(--admin-surface)]">
-    <div class="flex h-16 items-center gap-3 px-5">
+  <aside class="w-full border-b border-[var(--admin-border)] bg-[var(--admin-surface)] md:flex md:w-60 md:flex-col md:border-b-0 md:border-r xl:w-64">
+    <div class="flex h-16 items-center gap-3 px-5 md:flex-none">
       <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--admin-accent-bg)] text-[var(--admin-accent)]">
         <Store class="h-5 w-5" />
       </div>
@@ -10,7 +10,7 @@
       </div>
     </div>
 
-    <div v-if="branchContext.isDirector.value" class="px-4 pb-4">
+    <div v-if="branchContext.isDirector.value" class="px-4 pb-4 md:flex-none">
       <label class="label">Branch Context</label>
       <select class="select" :value="branchContext.selectedBranchId.value ?? ''" @change="onBranchChange">
         <option value="">All Branches</option>
@@ -20,12 +20,12 @@
       </select>
     </div>
 
-    <nav class="flex-1 space-y-1 px-3">
+    <nav class="flex gap-2 overflow-x-auto px-3 pb-4 md:flex-1 md:flex-col md:space-y-1 md:gap-0 md:overflow-visible md:pb-0">
       <NuxtLink
         v-for="item in visibleItems"
         :key="item.to"
         :to="item.to"
-        class="flex h-10 items-center gap-3 rounded-xl px-4 text-sm font-medium text-[var(--admin-text-muted)] transition hover:bg-[var(--admin-surface-2)] hover:text-[var(--admin-text)]"
+        class="flex h-10 shrink-0 items-center gap-3 rounded-xl px-4 text-sm font-medium text-[var(--admin-text-muted)] transition hover:bg-[var(--admin-surface-2)] hover:text-[var(--admin-text)]"
         active-class="bg-[var(--admin-accent-bg)] !text-[var(--admin-accent)]"
       >
         <component :is="item.icon" class="h-5 w-5" />
@@ -33,7 +33,7 @@
       </NuxtLink>
     </nav>
 
-    <div class="m-3 mt-6 rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface-2)] p-4">
+    <div class="m-3 hidden rounded-2xl border border-[var(--admin-border)] bg-[var(--admin-surface-2)] p-4 md:block">
       <div class="flex items-center gap-3">
         <div class="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--admin-accent-bg)] text-[var(--admin-accent)]">
           <User class="h-5 w-5" />

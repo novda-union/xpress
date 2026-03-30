@@ -1,7 +1,7 @@
 export default defineNuxtRouteMiddleware((to) => {
   if (import.meta.server) return
 
-  const { isAuthenticated, init } = useAuth()
+  const { isAuthenticated, init, state } = useAuth()
   const { canVisit } = usePermissions()
   init()
 
@@ -14,6 +14,16 @@ export default defineNuxtRouteMiddleware((to) => {
   }
 
   if (to.path !== '/login' && isAuthenticated.value && !canVisit(to.path)) {
-    return navigateTo('/')
+    const fallback = state.staff?.role === 'director'
+      ? '/'
+      : canVisit('/orders')
+          ? '/orders'
+          : canVisit('/settings/branch')
+              ? '/settings/branch'
+              : '/login'
+
+    if (fallback !== to.path) {
+      return navigateTo(fallback)
+    }
   }
 })

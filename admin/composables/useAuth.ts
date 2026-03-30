@@ -6,11 +6,24 @@ const state = reactive<AuthState>({
   initialized: false,
 })
 
+function isValidStaff(value: unknown): value is Staff {
+  if (!value || typeof value !== 'object') return false
+
+  const candidate = value as Partial<Staff>
+  return typeof candidate.id === 'string' &&
+    typeof candidate.store_id === 'string' &&
+    typeof candidate.staff_code === 'string' &&
+    typeof candidate.name === 'string' &&
+    (candidate.branch_id === undefined || candidate.branch_id === null || typeof candidate.branch_id === 'string') &&
+    (candidate.branch_name === undefined || candidate.branch_name === null || typeof candidate.branch_name === 'string') &&
+    ['director', 'manager', 'barista'].includes(candidate.role ?? '')
+}
+
 export function useAuth() {
   const config = useRuntimeConfig()
   const router = useRouter()
 
-  const isAuthenticated = computed(() => !!state.token)
+  const isAuthenticated = computed(() => !!state.token && !!state.staff)
   const role = computed(() => state.staff?.role ?? null)
 
   function init() {
@@ -18,9 +31,23 @@ export function useAuth() {
 
     state.token = localStorage.getItem('admin_token')
     const staffJson = localStorage.getItem('admin_staff')
-    if (staffJson) {
-      state.staff = JSON.parse(staffJson)
+
+    try {
+      const parsed = staffJson ? JSON.parse(staffJson) : null
+      state.staff = isValidStaff(parsed) ? parsed : null
+    } catch {
+      state.staff = null
     }
+
+    // Clear partial or invalid persisted auth to avoid redirect loops.
+    if (!state.token || !state.staff) {
+      state.token = null
+      state.staff = null
+      localStorage.removeItem('admin_token')
+      localStorage.removeItem('admin_staff')
+      localStorage.removeItem('admin_selected_branch_id')
+    }
+
     state.initialized = true
   }
 

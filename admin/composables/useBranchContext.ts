@@ -1,10 +1,9 @@
 import type { BranchSummary } from '~/types/auth'
 
-const selectedBranchIdState = useState<string | null>('admin-selected-branch-id', () => null)
-const branchesState = useState<BranchSummary[]>('admin-branches', () => [])
-const loadingState = useState<boolean>('admin-branches-loading', () => false)
-
 export function useBranchContext() {
+  const selectedBranchIdState = useState<string | null>('admin-selected-branch-id', () => null)
+  const branchesState = useState<BranchSummary[]>('admin-branches', () => [])
+  const loadingState = useState<boolean>('admin-branches-loading', () => false)
   const { state } = useAuth()
   const { api } = useApi()
 
@@ -51,8 +50,14 @@ export function useBranchContext() {
       if (!isDirector.value && state.staff?.branch_id) {
         selectedBranchIdState.value = state.staff.branch_id
       }
-      if (isDirector.value && selectedBranchIdState.value && !result.some((branch) => branch.id === selectedBranchIdState.value)) {
-        selectedBranchIdState.value = null
+      if (isDirector.value) {
+        if (selectedBranchIdState.value && !result.some((branch) => branch.id === selectedBranchIdState.value)) {
+          selectedBranchIdState.value = null
+        }
+
+        if (!selectedBranchIdState.value && result.length === 1) {
+          selectedBranchId.value = result[0].id
+        }
       }
     } finally {
       loadingState.value = false
