@@ -8,7 +8,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://srvr.novdaunion.uz',
+      apiBase: 'https://srvr.novdaunion.uz',
     },
   },
 })
