@@ -1,0 +1,4 @@
+interface:
+  display_name: "Xpressgo Architecture Review"
+  short_description: "Advisory repo architecture review"
+  default_prompt: "Use $xpressgo-architecture-review to review this Xpressgo change for architectural risks and cross-app impact."

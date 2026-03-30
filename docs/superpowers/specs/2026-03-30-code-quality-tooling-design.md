@@ -86,7 +86,7 @@ Commands:
 
 #### Web
 
-Defined in [web/package.json](/home/dasturchioka/work/projects/xpressgo/web/package.json).
+Defined in `web/package.json`.
 
 Commands:
 
@@ -99,7 +99,7 @@ Commands:
 
 #### Admin
 
-Defined in [admin/package.json](/home/dasturchioka/work/projects/xpressgo/admin/package.json).
+Defined in `admin/package.json`.
 
 Commands:
 
@@ -114,7 +114,7 @@ Commands:
 
 ## Root-Level Orchestration
 
-The root [Makefile](/home/dasturchioka/work/projects/xpressgo/Makefile) should become the main entry point for repo-wide checks.
+The root `Makefile` should become the main entry point for repo-wide checks.
 
 ### New Targets
 
@@ -206,7 +206,7 @@ Use `go vet ./...` for baseline Go correctness checks.
 
 Add `golangci-lint` with a curated config in:
 
-- [server/.golangci.yml](/home/dasturchioka/work/projects/xpressgo/server/.golangci.yml)
+- `server/.golangci.yml`
 
 Initial linters:
 
@@ -355,21 +355,21 @@ This work is successful when a developer can run one command at the repo root an
 
 ### Root
 
-- Modify: [Makefile](/home/dasturchioka/work/projects/xpressgo/Makefile)
+- Modify: `Makefile`
 - Create: `scripts/quality/server-quality.sh`
 - Create: `scripts/quality/server-fix.sh`
 
 ### Server
 
-- Create: [server/.golangci.yml](/home/dasturchioka/work/projects/xpressgo/server/.golangci.yml)
+- Create: `server/.golangci.yml`
 
 ### Web
 
-- Modify: [web/package.json](/home/dasturchioka/work/projects/xpressgo/web/package.json)
+- Modify: `web/package.json`
 
 ### Admin
 
-- Modify: [admin/package.json](/home/dasturchioka/work/projects/xpressgo/admin/package.json)
+- Modify: `admin/package.json`
 - Create: `admin/eslint.config.mjs` or `admin/eslint.config.js`
 
 ---

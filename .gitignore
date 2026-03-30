@@ -30,8 +30,7 @@ Thumbs.db
 .superpowers/
 
 # Local agent tooling
-.agents/
-.claude/
+.claude/settings.local.json
 
 # Docker
 postgres-data/

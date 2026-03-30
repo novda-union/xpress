@@ -51,8 +51,8 @@ Important behavior:
 
 Relevant backend logic lives in:
 
-- [server/internal/middleware/auth.go](/home/dasturchioka/work/projects/xpressgo/server/internal/middleware/auth.go)
-- [server/internal/service/permission_service.go](/home/dasturchioka/work/projects/xpressgo/server/internal/service/permission_service.go)
+- `server/internal/middleware/auth.go`
+- `server/internal/service/permission_service.go`
 
 ### 4. Prefer extending existing structure over inventing new parallel patterns
 
@@ -79,6 +79,32 @@ These are intentionally ignored and should stay untracked:
 
 Do not reintroduce local skill/tool directories into Git.
 
+### 6. Do not write machine-specific paths
+
+Do not write machine-specific absolute filesystem paths into shared project files.
+
+This includes:
+
+- `AGENTS.md`
+- `README.md`
+- specs
+- plans
+- skill files
+- repo scripts
+- shared instructions or templates
+
+Use repo-relative paths like:
+
+- `server/internal/handler/router.go`
+- `docs/registry.yml`
+- `.agents/skills/xpressgo-architecture-review/SKILL.md`
+
+Do not use host-specific paths like:
+
+- `/home/username/work/projects/xpressgo/...`
+
+Shared project guidance must work for the whole team, not only on one machine.
+
 ## Project Map
 
 ## Server
@@ -101,7 +127,7 @@ Important folders:
 
 Current routing is defined in:
 
-- [server/internal/handler/router.go](/home/dasturchioka/work/projects/xpressgo/server/internal/handler/router.go)
+- `server/internal/handler/router.go`
 
 Key public routes:
 
@@ -147,7 +173,7 @@ Entry route map:
 
 Route setup is in:
 
-- [web/src/App.tsx](/home/dasturchioka/work/projects/xpressgo/web/src/App.tsx)
+- `web/src/App.tsx`
 
 Important directories:
 
@@ -191,9 +217,9 @@ Important state/detail:
 
 Relevant files:
 
-- [admin/layouts/default.vue](/home/dasturchioka/work/projects/xpressgo/admin/layouts/default.vue)
-- [admin/composables/useBranchContext.ts](/home/dasturchioka/work/projects/xpressgo/admin/composables/useBranchContext.ts)
-- [admin/composables/usePermissions.ts](/home/dasturchioka/work/projects/xpressgo/admin/composables/usePermissions.ts)
+- `admin/layouts/default.vue`
+- `admin/composables/useBranchContext.ts`
+- `admin/composables/usePermissions.ts`
 
 ## Runtime Workflows
 
@@ -268,7 +294,7 @@ Default expectation before commit:
 
 Detailed quality usage is documented in:
 
-- [docs/code-quality-tooling.md](/home/dasturchioka/work/projects/xpressgo/docs/code-quality-tooling.md)
+- `docs/code-quality-tooling.md`
 
 ## Documentation Maintenance
 
@@ -276,7 +302,7 @@ Use the advisory documentation workflow when a change affects architecture, work
 
 Document ownership and routing live in:
 
-- [docs/registry.yml](/home/dasturchioka/work/projects/xpressgo/docs/registry.yml)
+- `docs/registry.yml`
 
 Primary advisory tooling:
 
@@ -364,30 +390,30 @@ This workflow is advisory only. The user decides whether to apply the suggested 
 
 For backend work:
 
-- [server/internal/handler/router.go](/home/dasturchioka/work/projects/xpressgo/server/internal/handler/router.go)
-- [server/internal/middleware/auth.go](/home/dasturchioka/work/projects/xpressgo/server/internal/middleware/auth.go)
-- [server/internal/service/permission_service.go](/home/dasturchioka/work/projects/xpressgo/server/internal/service/permission_service.go)
+- `server/internal/handler/router.go`
+- `server/internal/middleware/auth.go`
+- `server/internal/service/permission_service.go`
 
 For web work:
 
-- [web/src/App.tsx](/home/dasturchioka/work/projects/xpressgo/web/src/App.tsx)
-- [web/src/store/cart.ts](/home/dasturchioka/work/projects/xpressgo/web/src/store/cart.ts)
-- [web/src/types/index.ts](/home/dasturchioka/work/projects/xpressgo/web/src/types/index.ts)
-- [web/vite.config.ts](/home/dasturchioka/work/projects/xpressgo/web/vite.config.ts)
+- `web/src/App.tsx`
+- `web/src/store/cart.ts`
+- `web/src/types/index.ts`
+- `web/vite.config.ts`
 
 For admin work:
 
-- [admin/layouts/default.vue](/home/dasturchioka/work/projects/xpressgo/admin/layouts/default.vue)
-- [admin/composables/useApi.ts](/home/dasturchioka/work/projects/xpressgo/admin/composables/useApi.ts)
-- [admin/composables/useAuth.ts](/home/dasturchioka/work/projects/xpressgo/admin/composables/useAuth.ts)
-- [admin/composables/useBranchContext.ts](/home/dasturchioka/work/projects/xpressgo/admin/composables/useBranchContext.ts)
+- `admin/layouts/default.vue`
+- `admin/composables/useApi.ts`
+- `admin/composables/useAuth.ts`
+- `admin/composables/useBranchContext.ts`
 
 For product intent and rollout context:
 
-- [README.md](/home/dasturchioka/work/projects/xpressgo/README.md)
-- [docs/superpowers/specs/2026-03-29-branches-discovery-design.md](/home/dasturchioka/work/projects/xpressgo/docs/superpowers/specs/2026-03-29-branches-discovery-design.md)
-- [docs/superpowers/specs/2026-03-29-ui-ux-design-system.md](/home/dasturchioka/work/projects/xpressgo/docs/superpowers/specs/2026-03-29-ui-ux-design-system.md)
-- [docs/code-quality-tooling.md](/home/dasturchioka/work/projects/xpressgo/docs/code-quality-tooling.md)
+- `README.md`
+- `docs/superpowers/specs/2026-03-29-branches-discovery-design.md`
+- `docs/superpowers/specs/2026-03-29-ui-ux-design-system.md`
+- `docs/code-quality-tooling.md`
 
 ## Default Operating Checklist
 
