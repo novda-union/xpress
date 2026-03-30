@@ -17,8 +17,8 @@ type Config struct {
 
 func Load() *Config {
 	// Load .env from project root (one level up from server/)
-	godotenv.Load("../.env")
-	godotenv.Load(".env")
+	_ = godotenv.Load("../.env")
+	_ = godotenv.Load(".env")
 	return &Config{
 		DatabaseURL:      getEnv("DATABASE_URL", "postgres://xpressgo:xpressgo@localhost:5433/xpressgo?sslmode=disable"),
 		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),

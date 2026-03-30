@@ -1,16 +1,32 @@
+export type StoreCategory = 'bar' | 'cafe' | 'restaurant' | 'coffee' | 'fastfood'
+
 export interface Store {
   id: string
   name: string
   slug: string
+  category: StoreCategory
   description: string
   address: string
   phone: string
   logo_url: string
 }
 
+export interface Branch {
+  id: string
+  store_id: string
+  name: string
+  address: string
+  lat?: number | null
+  lng?: number | null
+  banner_image_url: string
+  telegram_group_chat_id?: number | null
+  is_active: boolean
+}
+
 export interface Category {
   id: string
   store_id: string
+  branch_id: string
   name: string
   sort_order: number
   is_active: boolean
@@ -20,6 +36,7 @@ export interface Item {
   id: string
   category_id: string
   store_id: string
+  branch_id: string
   name: string
   description: string
   base_price: number
@@ -31,6 +48,8 @@ export interface Item {
 export interface ModifierGroup {
   id: string
   item_id: string
+  store_id: string
+  branch_id: string
   name: string
   selection_type: 'single' | 'multiple'
   is_required: boolean
@@ -42,9 +61,12 @@ export interface ModifierGroup {
 export interface Modifier {
   id: string
   modifier_group_id: string
+  store_id: string
+  branch_id: string
   name: string
   price_adjustment: number
   is_available: boolean
+  sort_order: number
 }
 
 export interface MenuItem extends Item {
@@ -59,11 +81,39 @@ export interface Menu {
   categories: MenuCategory[]
 }
 
+export interface BranchPreviewItem {
+  id: string
+  name: string
+  image_url: string
+  base_price: number
+}
+
+export interface DiscoverBranch {
+  store_id: string
+  store_name: string
+  store_slug: string
+  store_logo_url: string
+  store_category: StoreCategory
+  branch_id: string
+  branch_name: string
+  branch_address: string
+  lat?: number | null
+  lng?: number | null
+  banner_image_url: string
+  preview_items: BranchPreviewItem[]
+}
+
+export interface BranchDetail {
+  store: Store
+  branch: Branch
+}
+
 export interface Order {
   id: string
   order_number: number
   user_id: string
   store_id: string
+  branch_id: string
   status: string
   total_price: number
   payment_method: string
@@ -90,11 +140,34 @@ export interface OrderItemModifier {
   price_adjustment: number
 }
 
+export interface CartModifier {
+  id: string
+  name: string
+  price: number
+}
+
 export interface CartItem {
   itemId: string
+  imageUrl: string
   name: string
   price: number
   quantity: number
-  modifiers: { id: string; name: string; price: number }[]
+  modifiers: CartModifier[]
   totalPrice: number
+}
+
+export interface CartMeta {
+  branchId: string
+  branchName: string
+  storeName: string
+  bannerImageUrl: string
+}
+
+export interface AuthUser {
+  id: string
+  telegram_id: number
+  phone: string
+  first_name: string
+  last_name: string
+  username: string
 }

@@ -1,28 +1,32 @@
 <template>
-  <div>
-    <h2 class="text-2xl font-bold mb-6">Settings</h2>
-
-    <div class="bg-white p-6 rounded-lg shadow max-w-lg">
-      <form @submit.prevent="saveSettings" class="space-y-4">
+  <div class="max-w-3xl">
+    <div class="surface-card p-6">
+      <form class="field-grid" @submit.prevent="saveSettings">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
-          <input v-model="form.name" class="w-full px-3 py-2 border rounded" />
+          <label class="label">Store Name</label>
+          <input v-model="form.name" class="input" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-          <textarea v-model="form.description" class="w-full px-3 py-2 border rounded" rows="3" />
+          <label class="label">Description</label>
+          <textarea v-model="form.description" class="textarea" />
+        </div>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div>
+            <label class="label">Address</label>
+            <input v-model="form.address" class="input" />
+          </div>
+          <div>
+            <label class="label">Phone</label>
+            <input v-model="form.phone" class="input" />
+          </div>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
-          <input v-model="form.address" class="w-full px-3 py-2 border rounded" />
+          <label class="label">Logo URL</label>
+          <input v-model="form.logo_url" class="input" />
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-          <input v-model="form.phone" class="w-full px-3 py-2 border rounded" />
+        <div class="pt-2">
+          <button class="btn-primary" type="submit">Save Store Settings</button>
         </div>
-        <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
-          Save
-        </button>
       </form>
     </div>
   </div>
@@ -33,26 +37,17 @@ const { api } = useApi()
 const form = reactive({ name: '', description: '', address: '', phone: '', logo_url: '' })
 
 onMounted(async () => {
-  try {
-    const store = await api<any>('/admin/store')
-    Object.assign(form, {
-      name: store.name,
-      description: store.description,
-      address: store.address,
-      phone: store.phone,
-      logo_url: store.logo_url,
-    })
-  } catch (e) {
-    console.error('Failed to load store', e)
-  }
+  const store = await api<any>('/admin/store')
+  Object.assign(form, {
+    address: store.address,
+    description: store.description,
+    logo_url: store.logo_url,
+    name: store.name,
+    phone: store.phone,
+  })
 })
 
 async function saveSettings() {
-  try {
-    await api('/admin/store', { method: 'PUT', body: { ...form } })
-    alert('Settings saved!')
-  } catch (e: any) {
-    alert(e?.data?.error || 'Failed to save settings')
-  }
+  await api('/admin/store', { method: 'PUT', body: { ...form } })
 }
 </script>

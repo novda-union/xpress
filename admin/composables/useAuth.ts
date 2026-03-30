@@ -1,19 +1,9 @@
-interface Staff {
-  id: string
-  store_id: string
-  staff_code: string
-  name: string
-  role: string
-}
-
-interface AuthState {
-  token: string | null
-  staff: Staff | null
-}
+import type { AuthState, Staff } from '~/types/auth'
 
 const state = reactive<AuthState>({
   token: null,
   staff: null,
+  initialized: false,
 })
 
 export function useAuth() {
@@ -21,15 +11,17 @@ export function useAuth() {
   const router = useRouter()
 
   const isAuthenticated = computed(() => !!state.token)
+  const role = computed(() => state.staff?.role ?? null)
 
   function init() {
-    if (import.meta.client) {
-      state.token = localStorage.getItem('admin_token')
-      const staffJson = localStorage.getItem('admin_staff')
-      if (staffJson) {
-        state.staff = JSON.parse(staffJson)
-      }
+    if (!import.meta.client || state.initialized) return
+
+    state.token = localStorage.getItem('admin_token')
+    const staffJson = localStorage.getItem('admin_staff')
+    if (staffJson) {
+      state.staff = JSON.parse(staffJson)
     }
+    state.initialized = true
   }
 
   async function login(storeCode: string, staffCode: string, password: string) {
@@ -49,18 +41,21 @@ export function useAuth() {
   function logout() {
     state.token = null
     state.staff = null
+    state.initialized = true
     localStorage.removeItem('admin_token')
     localStorage.removeItem('admin_staff')
+    localStorage.removeItem('admin_selected_branch_id')
     router.push('/login')
   }
 
-  function getAuthHeaders() {
+  function getAuthHeaders(): Record<string, string> {
     return state.token ? { Authorization: `Bearer ${state.token}` } : {}
   }
 
   return {
     state: readonly(state),
     isAuthenticated,
+    role,
     init,
     login,
     logout,

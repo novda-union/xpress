@@ -83,3 +83,14 @@ func (h *Hub) NotifyUser(userID string, msg Message) {
 func (h *Hub) NotifyStore(storeID string, msg Message) {
 	h.Broadcast("store:"+storeID, msg)
 }
+
+func (h *Hub) NotifyBranch(branchID string, msg Message) {
+	h.Broadcast("branch:"+branchID, msg)
+}
+
+func (h *Hub) NotifyStoreAndBranch(storeID, branchID string, msg Message) {
+	h.NotifyStore(storeID, msg)
+	if branchID != "" {
+		h.NotifyBranch(branchID, msg)
+	}
+}

@@ -55,7 +55,11 @@ func AdminWebSocket(hub *Hub) echo.HandlerFunc {
 		}
 
 		client := NewClient(hub, conn)
-		client.AutoSubscribe("store:" + storeID)
+		if branchID, ok := c.Get("branch_id").(*string); ok && branchID != nil && *branchID != "" {
+			client.AutoSubscribe("branch:" + *branchID)
+		} else {
+			client.AutoSubscribe("store:" + storeID)
+		}
 
 		go client.WritePump()
 		go client.ReadPump()

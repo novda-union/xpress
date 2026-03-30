@@ -56,11 +56,15 @@ func (s *AuthService) AdminLogin(ctx context.Context, storeCode, staffCode, pass
 	if err := bcrypt.CompareHashAndPassword([]byte(staff.PasswordHash), []byte(password)); err != nil {
 		return "", nil, errors.New("invalid credentials")
 	}
+	if staff.Role != "director" && staff.BranchID == nil {
+		return "", nil, errors.New("staff branch is required")
+	}
 
 	claims := &middleware.Claims{
-		StoreID: store.ID,
-		StaffID: staff.ID,
-		Role:    staff.Role,
+		StoreID:  store.ID,
+		BranchID: staff.BranchID,
+		StaffID:  staff.ID,
+		Role:     staff.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -77,7 +81,7 @@ func (s *AuthService) AdminLogin(ctx context.Context, storeCode, staffCode, pass
 }
 
 // ValidateTelegramAuth validates Telegram Mini App initData and returns JWT
-func (s *AuthService) ValidateTelegramAuth(ctx context.Context, initData string) (string, *model.User, error) {
+func (s *AuthService) ValidateTelegramAuth(ctx context.Context, initData, phone string) (string, *model.User, error) {
 	// Parse initData
 	params, err := url.ParseQuery(initData)
 	if err != nil {
@@ -132,6 +136,7 @@ func (s *AuthService) ValidateTelegramAuth(ctx context.Context, initData string)
 	// Upsert user
 	user := &model.User{
 		TelegramID: telegramID,
+		Phone:      strings.TrimSpace(phone),
 		FirstName:  params.Get("first_name"),
 		LastName:   params.Get("last_name"),
 		Username:   params.Get("username"),

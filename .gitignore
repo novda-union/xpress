@@ -25,5 +25,9 @@ Thumbs.db
 # Superpowers
 .superpowers/
 
+# Local agent tooling
+.agents/
+.claude/
+
 # Docker
 postgres-data/

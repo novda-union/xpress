@@ -18,12 +18,12 @@ func NewStoreRepo(db *pgxpool.Pool) *StoreRepo {
 func (r *StoreRepo) GetBySlug(ctx context.Context, slug string) (*model.Store, error) {
 	s := &model.Store{}
 	err := r.db.QueryRow(ctx, `
-		SELECT id, name, code, slug, description, address, phone, logo_url,
+		SELECT id, name, code, slug, category, description, address, phone, logo_url,
 		       telegram_group_chat_id, subscription_tier, subscription_expires_at,
 		       commission_rate, is_active, created_at, updated_at
 		FROM stores WHERE slug = $1 AND is_active = true
 	`, slug).Scan(
-		&s.ID, &s.Name, &s.Code, &s.Slug, &s.Description, &s.Address, &s.Phone, &s.LogoURL,
+		&s.ID, &s.Name, &s.Code, &s.Slug, &s.Category, &s.Description, &s.Address, &s.Phone, &s.LogoURL,
 		&s.TelegramGroupChatID, &s.SubscriptionTier, &s.SubscriptionExpires,
 		&s.CommissionRate, &s.IsActive, &s.CreatedAt, &s.UpdatedAt,
 	)
@@ -36,12 +36,12 @@ func (r *StoreRepo) GetBySlug(ctx context.Context, slug string) (*model.Store, e
 func (r *StoreRepo) GetByCode(ctx context.Context, code string) (*model.Store, error) {
 	s := &model.Store{}
 	err := r.db.QueryRow(ctx, `
-		SELECT id, name, code, slug, description, address, phone, logo_url,
+		SELECT id, name, code, slug, category, description, address, phone, logo_url,
 		       telegram_group_chat_id, subscription_tier, subscription_expires_at,
 		       commission_rate, is_active, created_at, updated_at
 		FROM stores WHERE code = $1
 	`, code).Scan(
-		&s.ID, &s.Name, &s.Code, &s.Slug, &s.Description, &s.Address, &s.Phone, &s.LogoURL,
+		&s.ID, &s.Name, &s.Code, &s.Slug, &s.Category, &s.Description, &s.Address, &s.Phone, &s.LogoURL,
 		&s.TelegramGroupChatID, &s.SubscriptionTier, &s.SubscriptionExpires,
 		&s.CommissionRate, &s.IsActive, &s.CreatedAt, &s.UpdatedAt,
 	)
@@ -54,12 +54,12 @@ func (r *StoreRepo) GetByCode(ctx context.Context, code string) (*model.Store, e
 func (r *StoreRepo) GetByID(ctx context.Context, id string) (*model.Store, error) {
 	s := &model.Store{}
 	err := r.db.QueryRow(ctx, `
-		SELECT id, name, code, slug, description, address, phone, logo_url,
+		SELECT id, name, code, slug, category, description, address, phone, logo_url,
 		       telegram_group_chat_id, subscription_tier, subscription_expires_at,
 		       commission_rate, is_active, created_at, updated_at
 		FROM stores WHERE id = $1
 	`, id).Scan(
-		&s.ID, &s.Name, &s.Code, &s.Slug, &s.Description, &s.Address, &s.Phone, &s.LogoURL,
+		&s.ID, &s.Name, &s.Code, &s.Slug, &s.Category, &s.Description, &s.Address, &s.Phone, &s.LogoURL,
 		&s.TelegramGroupChatID, &s.SubscriptionTier, &s.SubscriptionExpires,
 		&s.CommissionRate, &s.IsActive, &s.CreatedAt, &s.UpdatedAt,
 	)

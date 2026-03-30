@@ -1,104 +1,109 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { StatusBadge } from '../components/common/StatusBadge'
+import { MenuHeader } from '../components/menu/MenuHeader'
+import { AppShell } from '../components/layout/AppShell'
 import { api } from '../lib/api'
 import { formatPrice } from '../lib/format'
 import { useWebSocket } from '../hooks/useWebSocket'
-import type { Order } from '../types'
+import type { BranchDetail, Order } from '../types'
 
 const STATUS_STEPS = ['pending', 'accepted', 'preparing', 'ready', 'picked_up']
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending',
-  accepted: 'Accepted',
-  preparing: 'Preparing',
-  ready: 'Ready for Pickup',
-  picked_up: 'Picked Up',
-  rejected: 'Rejected',
-  cancelled: 'Cancelled',
-}
 
 export default function OrderPage() {
   const { id } = useParams<{ id: string }>()
   const [order, setOrder] = useState<Order | null>(null)
+  const [detail, setDetail] = useState<BranchDetail | null>(null)
 
   useEffect(() => {
-    if (!id) return
-    api<Order>(`/orders/${id}`).then(setOrder)
+    if (!id) {
+      return
+    }
+    api<Order>(`/orders/${id}`).then((nextOrder) => {
+      setOrder(nextOrder)
+      api<BranchDetail>(`/branches/${nextOrder.branch_id}`).then(setDetail).catch(() => undefined)
+    })
   }, [id])
 
-  const handleWsMessage = useCallback(
-    (msg: any) => {
-      if (msg.order_id === id) {
-        // Refresh order on status change
-        api<Order>(`/orders/${id}`).then(setOrder)
-      }
-    },
-    [id]
-  )
+  useWebSocket((message) => {
+    if (message.order_id === id && id) {
+      api<Order>(`/orders/${id}`).then(setOrder)
+    }
+  })
 
-  useWebSocket(handleWsMessage)
-
-  if (!order) {
-    return <div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>
+  async function cancelOrder() {
+    if (!order) {
+      return
+    }
+    const updated = await api<Order>(`/orders/${order.id}/cancel`, { method: 'PUT' })
+    setOrder(updated)
   }
 
-  const currentStep = STATUS_STEPS.indexOf(order.status)
-  const isTerminal = ['picked_up', 'rejected', 'cancelled'].includes(order.status)
+  if (!order) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+  }
+
+  const activeStep = STATUS_STEPS.indexOf(order.status)
+  const canCancel = order.status === 'pending'
 
   return (
-    <div className="max-w-lg mx-auto p-4">
-      <h1 className="text-xl font-bold mb-2">Order #{order.order_number}</h1>
+    <AppShell header={<MenuHeader title={`Order #${order.order_number}`} count={0} />}>
+      <div className="px-4 pb-10 pt-6">
+        <div className="xp-card p-5 text-center">
+          <StatusBadge status={order.status} />
+          <p className="mt-4 text-lg font-semibold">Your order is on its way</p>
+          <p className="mt-2 text-sm text-[var(--tg-theme-hint-color)]">
+            {detail ? `${detail.store.name} · ${detail.branch.name}` : 'Tracking your branch order'}
+          </p>
 
-      {/* Status */}
-      <div className="bg-white rounded-lg p-4 shadow-sm border mb-4">
-        <p className="text-lg font-semibold mb-4">{STATUS_LABELS[order.status]}</p>
-
-        {!isTerminal && (
-          <div className="flex items-center gap-1 mb-4">
-            {STATUS_STEPS.slice(0, -1).map((step, i) => (
-              <div
-                key={step}
-                className={`flex-1 h-2 rounded ${
-                  i <= currentStep ? 'bg-blue-600' : 'bg-gray-200'
-                }`}
-              />
+          <div className="mt-6 flex items-start justify-between gap-2">
+            {STATUS_STEPS.map((step, index) => (
+              <div key={step} className="flex flex-1 flex-col items-center gap-2">
+                <div className={`h-3 w-3 rounded-full ${index <= activeStep ? 'bg-[var(--xp-brand)]' : 'bg-[var(--xp-border)]'}`} />
+                <span className="text-[10px] text-[var(--tg-theme-hint-color)]">{step.replace('_', ' ')}</span>
+              </div>
             ))}
           </div>
-        )}
+        </div>
 
-        {order.status === 'rejected' && order.rejection_reason && (
-          <p className="text-red-600 text-sm">Reason: {order.rejection_reason}</p>
-        )}
-      </div>
-
-      {/* Items */}
-      <div className="bg-white rounded-lg p-4 shadow-sm border mb-4">
-        <h2 className="font-medium mb-3">Items</h2>
-        <div className="space-y-2">
-          {order.items.map((item) => (
-            <div key={item.id} className="flex justify-between text-sm">
-              <div>
-                <span>{item.quantity}x {item.item_name}</span>
-                {item.modifiers.length > 0 && (
-                  <p className="text-gray-500 text-xs">
-                    {item.modifiers.map((m) => m.modifier_name).join(', ')}
-                  </p>
-                )}
+        <div className="xp-card mt-4 p-5">
+          <p className="font-semibold">Items</p>
+          <div className="mt-4 space-y-3">
+            {order.items.map((item) => (
+              <div key={item.id} className="flex justify-between gap-3 text-sm">
+                <div>
+                  <p>{item.quantity}× {item.item_name}</p>
+                  {item.modifiers.length > 0 ? (
+                    <p className="text-xs text-[var(--tg-theme-hint-color)]">
+                      {item.modifiers.map((modifier) => modifier.modifier_name).join(', ')}
+                    </p>
+                  ) : null}
+                </div>
+                <span>{formatPrice(item.item_price * item.quantity)} UZS</span>
               </div>
-              <span>{formatPrice(item.item_price * item.quantity)}</span>
-            </div>
-          ))}
+            ))}
+          </div>
+          <div className="mt-4 border-t border-[var(--xp-border)] pt-4 flex justify-between font-semibold">
+            <span>Total</span>
+            <span>{formatPrice(order.total_price)} UZS</span>
+          </div>
         </div>
-        <div className="border-t mt-3 pt-3 flex justify-between font-bold">
-          <span>Total</span>
-          <span>{formatPrice(order.total_price)} UZS</span>
-        </div>
-      </div>
 
-      {/* ETA */}
-      <div className="bg-white rounded-lg p-4 shadow-sm border">
-        <p className="text-sm text-gray-500">Estimated arrival: ~{order.eta_minutes} min</p>
-        <p className="text-sm text-gray-500">Payment: {order.payment_method === 'pay_at_pickup' ? 'Pay at pickup' : 'Paid'}</p>
+        <div className="xp-card mt-4 p-5">
+          <p className="text-sm text-[var(--tg-theme-hint-color)]">Estimated arrival: ~{order.eta_minutes} min</p>
+          <p className="mt-2 text-sm text-[var(--tg-theme-hint-color)]">Payment: Pay at pickup</p>
+        </div>
+
+        {canCancel ? (
+          <button
+            type="button"
+            onClick={() => void cancelOrder()}
+            className="mt-4 flex h-12 w-full items-center justify-center rounded-[20px] border border-[var(--xp-border)] bg-transparent text-sm font-semibold"
+          >
+            Cancel Order
+          </button>
+        ) : null}
       </div>
-    </div>
+    </AppShell>
   )
 }

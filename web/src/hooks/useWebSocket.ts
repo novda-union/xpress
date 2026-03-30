@@ -1,43 +1,63 @@
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getWsUrl } from '../lib/api'
+import type { Order } from '../types'
 
 interface WSMessage {
   type: string
   order_id?: string
   status?: string
   reason?: string
-  order?: any
+  order?: Order
 }
 
 export function useWebSocket(onMessage: (msg: WSMessage) => void) {
   const wsRef = useRef<WebSocket | null>(null)
+  const reconnectTimeoutRef = useRef<number | null>(null)
+  const onMessageRef = useRef(onMessage)
   const [isConnected, setIsConnected] = useState(false)
 
-  const connect = useCallback(() => {
-    const ws = new WebSocket(getWsUrl())
-    wsRef.current = ws
-
-    ws.onopen = () => {
-      setIsConnected(true)
-    }
-
-    ws.onmessage = (event) => {
-      const msg: WSMessage = JSON.parse(event.data)
-      onMessage(msg)
-    }
-
-    ws.onclose = () => {
-      setIsConnected(false)
-      setTimeout(connect, 3000)
-    }
-
-    return ws
+  useEffect(() => {
+    onMessageRef.current = onMessage
   }, [onMessage])
 
   useEffect(() => {
+    let cancelled = false
+
+    const connect = () => {
+      const ws = new WebSocket(getWsUrl())
+      wsRef.current = ws
+
+      ws.onopen = () => {
+        setIsConnected(true)
+      }
+
+      ws.onmessage = (event) => {
+        const msg: WSMessage = JSON.parse(event.data)
+        onMessageRef.current(msg)
+      }
+
+      ws.onclose = () => {
+        setIsConnected(false)
+        if (cancelled) {
+          return
+        }
+        reconnectTimeoutRef.current = window.setTimeout(() => {
+          connect()
+        }, 3000)
+      }
+
+      return ws
+    }
+
     const ws = connect()
-    return () => ws.close()
-  }, [connect])
+    return () => {
+      cancelled = true
+      if (reconnectTimeoutRef.current !== null) {
+        window.clearTimeout(reconnectTimeoutRef.current)
+      }
+      ws.close()
+    }
+  }, [])
 
   return { isConnected }
 }

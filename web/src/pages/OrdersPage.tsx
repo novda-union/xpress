@@ -1,54 +1,55 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { StatusBadge } from '../components/common/StatusBadge'
+import { MenuHeader } from '../components/menu/MenuHeader'
+import { AppShell } from '../components/layout/AppShell'
 import { api } from '../lib/api'
 import { formatPrice } from '../lib/format'
 import type { Order } from '../types'
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending',
-  accepted: 'Accepted',
-  preparing: 'Preparing',
-  ready: 'Ready',
-  picked_up: 'Picked Up',
-  rejected: 'Rejected',
-  cancelled: 'Cancelled',
-}
 
 export default function OrdersPage() {
   const navigate = useNavigate()
   const [orders, setOrders] = useState<Order[]>([])
 
   useEffect(() => {
-    api<Order[]>('/orders').catch(() => []).then(setOrders)
+    api<Order[]>('/orders')
+      .then(setOrders)
+      .catch(() => setOrders([]))
   }, [])
 
   return (
-    <div className="max-w-lg mx-auto p-4">
-      <h1 className="text-xl font-bold mb-4">My Orders</h1>
-
-      {orders.length === 0 ? (
-        <p className="text-gray-500 text-center mt-10">No orders yet</p>
-      ) : (
-        <div className="space-y-3">
-          {orders.map((order) => (
-            <button
-              key={order.id}
-              onClick={() => navigate(`/order/${order.id}`)}
-              className="w-full text-left bg-white rounded-lg p-4 shadow-sm border"
-            >
-              <div className="flex justify-between items-start">
-                <span className="font-bold">#{order.order_number}</span>
-                <span className="text-xs px-2 py-1 bg-gray-100 rounded">
-                  {STATUS_LABELS[order.status]}
-                </span>
-              </div>
-              <p className="text-sm text-gray-500 mt-1">
-                {new Date(order.created_at).toLocaleDateString()} &middot; {formatPrice(order.total_price)} UZS
-              </p>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <AppShell header={<MenuHeader title="My Orders" count={0} />}>
+      <div className="px-4 pb-10 pt-4">
+        {orders.length === 0 ? (
+          <div className="xp-card px-6 py-10 text-center">
+            <p className="text-lg font-semibold">No orders yet</p>
+            <p className="mt-2 text-sm text-[var(--tg-theme-hint-color)]">
+              Once you place an order, it will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {orders.map((order) => (
+              <button
+                type="button"
+                key={order.id}
+                onClick={() => navigate(`/order/${order.id}`)}
+                className="xp-card w-full px-4 py-4 text-left"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">Order #{order.order_number}</p>
+                    <p className="mt-1 text-sm text-[var(--tg-theme-hint-color)]">
+                      {new Date(order.created_at).toLocaleDateString()} · {formatPrice(order.total_price)} UZS
+                    </p>
+                  </div>
+                  <StatusBadge status={order.status} />
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </AppShell>
   )
 }

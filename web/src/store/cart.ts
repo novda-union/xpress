@@ -1,52 +1,66 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { CartItem } from '../types'
+import type { CartItem, CartMeta } from '../types'
 
 interface CartState {
-  storeId: string | null
-  storeSlug: string | null
+  branch: CartMeta | null
   items: CartItem[]
-  setStore: (id: string, slug: string) => void
+  setBranch: (branch: CartMeta) => void
   addItem: (item: CartItem) => void
   removeItem: (index: number) => void
   updateQuantity: (index: number, quantity: number) => void
   clear: () => void
   total: () => number
+  count: () => number
+}
+
+function recalculate(item: CartItem, quantity: number): CartItem {
+  const modifierTotal = item.modifiers.reduce((sum, modifier) => sum + modifier.price, 0)
+  return {
+    ...item,
+    quantity,
+    totalPrice: (item.price + modifierTotal) * quantity,
+  }
 }
 
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
-      storeId: null,
-      storeSlug: null,
+      branch: null,
       items: [],
 
-      setStore: (id, slug) => {
-        const state = get()
-        // Clear cart if switching stores
-        if (state.storeId && state.storeId !== id) {
-          set({ storeId: id, storeSlug: slug, items: [] })
-        } else {
-          set({ storeId: id, storeSlug: slug })
+      setBranch: (branch) => {
+        const current = get().branch
+        if (current && current.branchId !== branch.branchId) {
+          set({ branch, items: [] })
+          return
         }
+        set({ branch })
       },
 
-      addItem: (item) => set((state) => ({ items: [...state.items, item] })),
+      addItem: (item) =>
+        set((state) => ({
+          items: [...state.items, item],
+        })),
 
       removeItem: (index) =>
-        set((state) => ({ items: state.items.filter((_, i) => i !== index) })),
+        set((state) => ({
+          items: state.items.filter((_, itemIndex) => itemIndex !== index),
+        })),
 
       updateQuantity: (index, quantity) =>
         set((state) => ({
-          items: state.items.map((item, i) =>
-            i === index ? { ...item, quantity, totalPrice: (item.price + item.modifiers.reduce((s, m) => s + m.price, 0)) * quantity } : item
+          items: state.items.map((item, itemIndex) =>
+            itemIndex === index ? recalculate(item, quantity) : item,
           ),
         })),
 
       clear: () => set({ items: [] }),
 
       total: () => get().items.reduce((sum, item) => sum + item.totalPrice, 0),
+
+      count: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
     }),
-    { name: 'xpressgo-cart' }
-  )
+    { name: 'xpressgo-cart-v2' },
+  ),
 )

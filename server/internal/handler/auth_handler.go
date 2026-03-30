@@ -16,7 +16,9 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 }
 
 type telegramAuthRequest struct {
-	InitData string `json:"init_data"`
+	InitData    string `json:"init_data"`
+	Phone       string `json:"phone"`
+	PhoneNumber string `json:"phone_number"`
 }
 
 func (h *AuthHandler) TelegramAuth(c echo.Context) error {
@@ -25,7 +27,12 @@ func (h *AuthHandler) TelegramAuth(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request"})
 	}
 
-	token, user, err := h.authService.ValidateTelegramAuth(c.Request().Context(), req.InitData)
+	phone := req.Phone
+	if phone == "" {
+		phone = req.PhoneNumber
+	}
+
+	token, user, err := h.authService.ValidateTelegramAuth(c.Request().Context(), req.InitData, phone)
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
 	}

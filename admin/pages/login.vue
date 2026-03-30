@@ -1,50 +1,56 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-100">
-    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-      <h1 class="text-2xl font-bold mb-6 text-center">Xpressgo Admin</h1>
+  <div class="admin-shell flex min-h-screen items-center justify-center p-6">
+    <div class="surface-card w-full max-w-md p-8">
+      <div class="mb-8 text-center">
+        <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--admin-accent-bg)] text-[var(--admin-accent)]">
+          <Store class="h-6 w-6" />
+        </div>
+        <h1 class="text-2xl font-bold">Xpressgo Admin</h1>
+        <p class="mt-2 text-sm text-[var(--admin-text-muted)]">Welcome back. Sign in to manage branches, orders, and staff.</p>
+      </div>
 
-      <form @submit.prevent="handleLogin" class="space-y-4">
+      <form class="space-y-4" @submit.prevent="handleLogin">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Store Code</label>
+          <label class="label">Store Code</label>
           <input
             v-model="form.storeCode"
             type="text"
             placeholder="e.g. demobar"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="input"
             required
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Staff Code</label>
+          <label class="label">Staff Code</label>
           <input
             v-model="form.staffCode"
             type="text"
             placeholder="e.g. admin"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="input"
             required
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <label class="label">Password</label>
           <input
             v-model="form.password"
             type="password"
             placeholder="Password"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="input"
             required
           />
         </div>
 
-        <p v-if="error" class="text-red-500 text-sm">{{ error }}</p>
+        <p v-if="error" class="text-sm text-[var(--admin-error)]">{{ error }}</p>
 
         <button
           type="submit"
           :disabled="loading"
-          class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
+          class="btn-primary w-full"
         >
-          {{ loading ? 'Logging in...' : 'Login' }}
+          {{ loading ? 'Signing in...' : 'Sign In' }}
         </button>
       </form>
     </div>
@@ -52,6 +58,8 @@
 </template>
 
 <script setup lang="ts">
+import { Store } from 'lucide-vue-next'
+
 definePageMeta({ layout: false })
 
 const { login } = useAuth()

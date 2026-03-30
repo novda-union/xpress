@@ -56,6 +56,10 @@ func (r *UserRepo) Upsert(ctx context.Context, u *model.User) error {
 		INSERT INTO users (telegram_id, phone, first_name, last_name, username)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (telegram_id) DO UPDATE SET
+			phone = CASE
+				WHEN EXCLUDED.phone IS NOT NULL AND EXCLUDED.phone <> '' THEN EXCLUDED.phone
+				ELSE users.phone
+			END,
 			first_name = EXCLUDED.first_name,
 			last_name = EXCLUDED.last_name,
 			username = EXCLUDED.username

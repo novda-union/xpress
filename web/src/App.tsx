@@ -1,31 +1,25 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import StorePage from './pages/StorePage'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import CartPage from './pages/CartPage'
+import HomePage from './pages/HomePage'
+import ItemPage from './pages/ItemPage'
 import OrderPage from './pages/OrderPage'
 import OrdersPage from './pages/OrdersPage'
+import BranchPage from './pages/BranchPage'
+import StorePage from './pages/StorePage'
 
 function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-50">
-        <Routes>
-          <Route path="/:slug" element={<StorePage />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/order/:id" element={<OrderPage />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route
-            path="/"
-            element={
-              <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                  <h1 className="text-3xl font-bold mb-2">Xpressgo</h1>
-                  <p className="text-gray-500">Open this app from a Telegram bot</p>
-                </div>
-              </div>
-            }
-          />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/branch/:id" element={<BranchPage />} />
+        <Route path="/item/:id" element={<ItemPage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/order/:id" element={<OrderPage />} />
+        <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/:slug" element={<StorePage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   )
 }

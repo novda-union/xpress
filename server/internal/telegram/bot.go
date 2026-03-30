@@ -33,7 +33,9 @@ func (b *Bot) Start() {
 	}
 
 	// Remove any existing webhook so long polling works
-	b.api.Request(tgbotapi.DeleteWebhookConfig{})
+	if _, err := b.api.Request(tgbotapi.DeleteWebhookConfig{}); err != nil {
+		log.Printf("telegram: failed to clear webhook: %v", err)
+	}
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -78,5 +80,7 @@ func (b *Bot) handleStart(msg *tgbotapi.Message) {
 
 	reply := tgbotapi.NewMessage(msg.Chat.ID, "Welcome to Xpressgo! Tap the button below to browse the menu and place your order.")
 	reply.ReplyMarkup = keyboard
-	b.api.Send(reply)
+	if _, err := b.api.Send(reply); err != nil {
+		log.Printf("telegram: failed to send start reply: %v", err)
+	}
 }

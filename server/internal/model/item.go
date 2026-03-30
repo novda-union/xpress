@@ -4,6 +4,7 @@ type Item struct {
 	ID          string `json:"id"`
 	CategoryID  string `json:"category_id"`
 	StoreID     string `json:"store_id"`
+	BranchID    string `json:"branch_id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	BasePrice   int64  `json:"base_price"`

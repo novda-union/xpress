@@ -2,8 +2,8 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/xpressgo/server/internal/model"
 )
@@ -21,13 +21,15 @@ func (r *OrderRepo) Create(ctx context.Context, o *model.Order) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	err = tx.QueryRow(ctx, `
-		INSERT INTO orders (user_id, store_id, status, total_price, payment_method, payment_status, eta_minutes)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO orders (user_id, store_id, branch_id, status, total_price, payment_method, payment_status, eta_minutes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, order_number, created_at, updated_at
-	`, o.UserID, o.StoreID, "pending", o.TotalPrice, o.PaymentMethod, "pending", o.ETAMinutes).Scan(
+	`, o.UserID, o.StoreID, o.BranchID, "pending", o.TotalPrice, o.PaymentMethod, "pending", o.ETAMinutes).Scan(
 		&o.ID, &o.OrderNumber, &o.CreatedAt, &o.UpdatedAt,
 	)
 	if err != nil {
@@ -68,11 +70,11 @@ func (r *OrderRepo) Create(ctx context.Context, o *model.Order) error {
 func (r *OrderRepo) GetByID(ctx context.Context, id string) (*model.Order, error) {
 	o := &model.Order{}
 	err := r.db.QueryRow(ctx, `
-		SELECT id, order_number, user_id, store_id, status, total_price,
+		SELECT id, order_number, user_id, store_id, branch_id, status, total_price,
 		       payment_method, payment_status, eta_minutes, rejection_reason, created_at, updated_at
 		FROM orders WHERE id = $1
 	`, id).Scan(
-		&o.ID, &o.OrderNumber, &o.UserID, &o.StoreID, &o.Status, &o.TotalPrice,
+		&o.ID, &o.OrderNumber, &o.UserID, &o.StoreID, &o.BranchID, &o.Status, &o.TotalPrice,
 		&o.PaymentMethod, &o.PaymentStatus, &o.ETAMinutes, &o.RejectionReason, &o.CreatedAt, &o.UpdatedAt,
 	)
 	if err != nil {
@@ -128,21 +130,27 @@ func (r *OrderRepo) GetByID(ctx context.Context, id string) (*model.Order, error
 }
 
 func (r *OrderRepo) ListByStore(ctx context.Context, storeID string, status string) ([]model.Order, error) {
+	return r.ListByScope(ctx, storeID, nil, status)
+}
+
+func (r *OrderRepo) ListByScope(ctx context.Context, storeID string, branchID *string, status string) ([]model.Order, error) {
 	query := `
-		SELECT id, order_number, user_id, store_id, status, total_price,
+		SELECT id, order_number, user_id, store_id, branch_id, status, total_price,
 		       payment_method, payment_status, eta_minutes, rejection_reason, created_at, updated_at
 		FROM orders WHERE store_id = $1
 	`
-	var rows pgx.Rows
-	var err error
-
-	if status != "" {
-		query += ` AND status = $2 ORDER BY created_at DESC`
-		rows, err = r.db.Query(ctx, query, storeID, status)
-	} else {
-		query += ` ORDER BY created_at DESC`
-		rows, err = r.db.Query(ctx, query, storeID)
+	args := []any{storeID}
+	if branchID != nil && *branchID != "" {
+		args = append(args, *branchID)
+		query += fmt.Sprintf(" AND branch_id = $%d", len(args))
 	}
+	if status != "" {
+		args = append(args, status)
+		query += fmt.Sprintf(" AND status = $%d", len(args))
+	}
+	query += ` ORDER BY created_at DESC`
+
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +160,7 @@ func (r *OrderRepo) ListByStore(ctx context.Context, storeID string, status stri
 	for rows.Next() {
 		var o model.Order
 		if err := rows.Scan(
-			&o.ID, &o.OrderNumber, &o.UserID, &o.StoreID, &o.Status, &o.TotalPrice,
+			&o.ID, &o.OrderNumber, &o.UserID, &o.StoreID, &o.BranchID, &o.Status, &o.TotalPrice,
 			&o.PaymentMethod, &o.PaymentStatus, &o.ETAMinutes, &o.RejectionReason, &o.CreatedAt, &o.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -167,7 +175,7 @@ func (r *OrderRepo) ListByStore(ctx context.Context, storeID string, status stri
 
 func (r *OrderRepo) ListByUser(ctx context.Context, userID string) ([]model.Order, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, order_number, user_id, store_id, status, total_price,
+		SELECT id, order_number, user_id, store_id, branch_id, status, total_price,
 		       payment_method, payment_status, eta_minutes, rejection_reason, created_at, updated_at
 		FROM orders WHERE user_id = $1 ORDER BY created_at DESC
 	`, userID)
@@ -180,7 +188,7 @@ func (r *OrderRepo) ListByUser(ctx context.Context, userID string) ([]model.Orde
 	for rows.Next() {
 		var o model.Order
 		if err := rows.Scan(
-			&o.ID, &o.OrderNumber, &o.UserID, &o.StoreID, &o.Status, &o.TotalPrice,
+			&o.ID, &o.OrderNumber, &o.UserID, &o.StoreID, &o.BranchID, &o.Status, &o.TotalPrice,
 			&o.PaymentMethod, &o.PaymentStatus, &o.ETAMinutes, &o.RejectionReason, &o.CreatedAt, &o.UpdatedAt,
 		); err != nil {
 			return nil, err

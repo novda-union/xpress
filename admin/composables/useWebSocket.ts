@@ -1,7 +1,9 @@
+import type { AdminOrder } from '~/types/auth'
+
 interface WSMessage {
   type: string
   order_id?: string
-  order?: any
+  order?: AdminOrder
   status?: string
   reason?: string
 }
@@ -21,8 +23,6 @@ export function useAdminWebSocket() {
 
     ws.value.onopen = () => {
       isConnected.value = true
-      // Auto-subscribe to store orders
-      ws.value?.send(JSON.stringify({ type: 'subscribe', channel: `store:orders` }))
     }
 
     ws.value.onmessage = (event) => {

@@ -7,9 +7,16 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc -b",
+    "quality": "npm run lint && npm run typecheck && npm run build",
+    "quality:fix": "npm run lint:fix && npm run quality",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@telegram-apps/sdk": "^3.11.8",
+    "lucide-react": "^1.7.0",
+    "maplibre-gl": "^5.21.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.2",

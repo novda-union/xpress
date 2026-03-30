@@ -31,30 +31,56 @@ func main() {
 	itemRepo := repository.NewItemRepo(db)
 	modGroupRepo := repository.NewModifierGroupRepo(db)
 	modRepo := repository.NewModifierRepo(db)
+	branchRepo := repository.NewBranchRepo(db)
 	menuRepo := repository.NewMenuRepo(db)
 	orderRepo := repository.NewOrderRepo(db)
 	txRepo := repository.NewTransactionRepo(db)
 
 	// Services
 	authService := service.NewAuthService(storeRepo, staffRepo, userRepo, cfg.JWTSecret, cfg.TelegramBotToken)
-	orderService := service.NewOrderService(orderRepo, storeRepo, txRepo)
+	orderService := service.NewOrderService(orderRepo, branchRepo, menuRepo, txRepo)
+	permissionService := service.NewPermissionService()
 
 	// WebSocket hub
 	hub := ws.NewHub()
-
-	// Handlers
-	handlers := &handler.Handlers{
-		Auth:  handler.NewAuthHandler(authService),
-		Store: handler.NewStoreHandler(storeRepo, menuRepo),
-		Menu:  handler.NewMenuHandler(categoryRepo, itemRepo, modGroupRepo, modRepo, menuRepo),
-		Order: handler.NewOrderHandler(orderService, hub),
-	}
 
 	// Echo server
 	e := echo.New()
 	e.HideBanner = true
 
-	e.Use(echomw.Logger())
+	e.Use(echomw.RequestLoggerWithConfig(echomw.RequestLoggerConfig{
+		LogURI:      true,
+		LogMethod:   true,
+		LogStatus:   true,
+		LogRemoteIP: true,
+		LogLatency:  true,
+		LogError:    true,
+		HandleError: true,
+		LogValuesFunc: func(c echo.Context, values echomw.RequestLoggerValues) error {
+			if values.Error != nil {
+				e.Logger.Errorf(
+					"%s %s status=%d ip=%s latency=%s error=%v",
+					values.Method,
+					values.URI,
+					values.Status,
+					values.RemoteIP,
+					values.Latency,
+					values.Error,
+				)
+				return nil
+			}
+
+			e.Logger.Infof(
+				"%s %s status=%d ip=%s latency=%s",
+				values.Method,
+				values.URI,
+				values.Status,
+				values.RemoteIP,
+				values.Latency,
+			)
+			return nil
+		},
+	}))
 	e.Use(echomw.Recover())
 	e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
 		AllowOrigins: []string{"http://localhost:5173", "http://localhost:3000"},
@@ -66,8 +92,6 @@ func main() {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	handler.SetupRoutes(e, handlers, hub, cfg.JWTSecret)
-
 	// Telegram bot (runs in background)
 	log.Printf("Telegram bot token length: %d", len(cfg.TelegramBotToken))
 	bot, err := telegram.NewBot(cfg.TelegramBotToken, cfg.AppURL)
@@ -76,7 +100,18 @@ func main() {
 	} else {
 		go bot.Start()
 	}
-	_ = bot // Available for notification integration
+
+	// Handlers
+	handlers := &handler.Handlers{
+		Auth:   handler.NewAuthHandler(authService),
+		Branch: handler.NewBranchHandler(branchRepo, menuRepo, permissionService),
+		Staff:  handler.NewStaffHandler(staffRepo, branchRepo, permissionService),
+		Store:  handler.NewStoreHandler(storeRepo, branchRepo, menuRepo),
+		Menu:   handler.NewMenuHandler(categoryRepo, itemRepo, modGroupRepo, modRepo, menuRepo, permissionService),
+		Order:  handler.NewOrderHandler(orderService, branchRepo, bot, hub),
+	}
+
+	handler.SetupRoutes(e, handlers, hub, cfg.JWTSecret)
 
 	log.Printf("Starting server on :%s", cfg.Port)
 	e.Logger.Fatal(e.Start(":" + cfg.Port))

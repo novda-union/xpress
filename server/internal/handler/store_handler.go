@@ -9,12 +9,13 @@ import (
 )
 
 type StoreHandler struct {
-	storeRepo *repository.StoreRepo
-	menuRepo  *repository.MenuRepo
+	storeRepo  *repository.StoreRepo
+	branchRepo *repository.BranchRepo
+	menuRepo   *repository.MenuRepo
 }
 
-func NewStoreHandler(storeRepo *repository.StoreRepo, menuRepo *repository.MenuRepo) *StoreHandler {
-	return &StoreHandler{storeRepo: storeRepo, menuRepo: menuRepo}
+func NewStoreHandler(storeRepo *repository.StoreRepo, branchRepo *repository.BranchRepo, menuRepo *repository.MenuRepo) *StoreHandler {
+	return &StoreHandler{storeRepo: storeRepo, branchRepo: branchRepo, menuRepo: menuRepo}
 }
 
 func (h *StoreHandler) GetBySlug(c echo.Context) error {
@@ -28,12 +29,21 @@ func (h *StoreHandler) GetBySlug(c echo.Context) error {
 
 func (h *StoreHandler) GetMenu(c echo.Context) error {
 	slug := c.Param("slug")
-	store, err := h.storeRepo.GetBySlug(c.Request().Context(), slug)
+	branch, err := h.branchRepo.GetPrimaryByStoreSlug(c.Request().Context(), slug)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "store not found"})
+		store, storeErr := h.storeRepo.GetBySlug(c.Request().Context(), slug)
+		if storeErr != nil {
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "store not found"})
+		}
+
+		menu, menuErr := h.menuRepo.GetFullMenu(c.Request().Context(), store.ID)
+		if menuErr != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load menu"})
+		}
+		return c.JSON(http.StatusOK, menu)
 	}
 
-	menu, err := h.menuRepo.GetFullMenu(c.Request().Context(), store.ID)
+	menu, err := h.menuRepo.GetFullMenuByBranch(c.Request().Context(), branch.ID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to load menu"})
 	}

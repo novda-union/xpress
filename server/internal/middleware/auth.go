@@ -9,12 +9,28 @@ import (
 )
 
 type Claims struct {
-	UserID     string `json:"user_id,omitempty"`
-	TelegramID int64  `json:"telegram_id,omitempty"`
-	StoreID    string `json:"store_id,omitempty"`
-	StaffID    string `json:"staff_id,omitempty"`
-	Role       string `json:"role,omitempty"`
+	UserID     string  `json:"user_id,omitempty"`
+	TelegramID int64   `json:"telegram_id,omitempty"`
+	StoreID    string  `json:"store_id,omitempty"`
+	BranchID   *string `json:"branch_id"`
+	StaffID    string  `json:"staff_id,omitempty"`
+	Role       string  `json:"role,omitempty"`
 	jwt.RegisteredClaims
+}
+
+type AdminScope struct {
+	StoreID  string
+	BranchID *string
+	StaffID  string
+	Role     string
+}
+
+func (s AdminScope) IsStoreWide() bool {
+	return s.Role == "director" || s.BranchID == nil
+}
+
+func (s AdminScope) IsBranchScoped() bool {
+	return s.BranchID != nil
 }
 
 func UserAuth(jwtSecret string) echo.MiddlewareFunc {
@@ -39,11 +55,48 @@ func AdminAuth(jwtSecret string) echo.MiddlewareFunc {
 				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 			}
 			c.Set("store_id", claims.StoreID)
+			c.Set("branch_id", claims.BranchID)
 			c.Set("staff_id", claims.StaffID)
 			c.Set("role", claims.Role)
 			return next(c)
 		}
 	}
+}
+
+func AdminScopeFromContext(c echo.Context) (AdminScope, bool) {
+	storeID, ok := c.Get("store_id").(string)
+	if !ok || storeID == "" {
+		return AdminScope{}, false
+	}
+
+	scope := AdminScope{StoreID: storeID}
+	if branchID, ok := c.Get("branch_id").(*string); ok {
+		scope.BranchID = branchID
+	}
+	if staffID, ok := c.Get("staff_id").(string); ok {
+		scope.StaffID = staffID
+	}
+	if role, ok := c.Get("role").(string); ok {
+		scope.Role = role
+	}
+
+	return scope, true
+}
+
+func IsDirector(role string) bool {
+	return role == "director"
+}
+
+func IsManager(role string) bool {
+	return role == "manager"
+}
+
+func IsBarista(role string) bool {
+	return role == "barista"
+}
+
+func IsBranchScoped(role string) bool {
+	return IsManager(role) || IsBarista(role)
 }
 
 func extractClaims(c echo.Context, jwtSecret string) (*Claims, error) {

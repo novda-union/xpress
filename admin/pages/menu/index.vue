@@ -1,165 +1,198 @@
 <template>
-  <div>
-    <div class="flex justify-between items-center mb-6">
-      <h2 class="text-2xl font-bold">Menu</h2>
-      <button @click="showAddCategory = true" class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
-        Add Category
-      </button>
+  <div class="space-y-6">
+    <div v-if="requiresSpecificBranch" class="surface-card p-8 text-center">
+      <p class="text-lg font-semibold">Select a branch to manage its menu.</p>
+      <p class="mt-2 text-sm text-[var(--admin-text-muted)]">Store-wide menu editing is disabled because categories and items are now branch scoped.</p>
     </div>
 
-    <!-- Add Category Form -->
-    <div v-if="showAddCategory" class="bg-white p-4 rounded-lg shadow mb-6">
-      <form @submit.prevent="addCategory" class="flex gap-3">
-        <input
-          v-model="newCategory.name"
-          placeholder="Category name"
-          class="flex-1 px-3 py-2 border rounded"
-          required
-        />
-        <input
-          v-model.number="newCategory.sort_order"
-          type="number"
-          placeholder="Order"
-          class="w-20 px-3 py-2 border rounded"
-        />
-        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Save</button>
-        <button type="button" @click="showAddCategory = false" class="bg-gray-300 px-4 py-2 rounded">Cancel</button>
-      </form>
-    </div>
-
-    <!-- Categories -->
-    <div class="space-y-4">
-      <div v-for="cat in menu?.categories" :key="cat.id" class="bg-white rounded-lg shadow">
-        <div class="flex justify-between items-center p-4 border-b">
-          <h3 class="font-semibold text-lg">{{ cat.name }}</h3>
-          <div class="flex gap-2">
-            <button
-              @click="selectedCategory = cat; showAddItem = true"
-              class="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200"
-            >
-              Add Item
-            </button>
-            <button
-              @click="deleteCategory(cat.id)"
-              class="text-sm bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <div class="p-4 space-y-3">
-          <div v-for="item in cat.items" :key="item.id" class="flex justify-between items-center py-2 border-b last:border-0">
-            <div>
-              <p class="font-medium">{{ item.name }}</p>
-              <p class="text-sm text-gray-500">{{ item.description }}</p>
-              <p class="text-sm text-gray-400" v-if="item.modifier_groups?.length">
-                {{ item.modifier_groups.length }} modifier group(s)
-              </p>
-            </div>
-            <div class="flex items-center gap-3">
-              <span class="font-semibold">{{ formatPrice(item.base_price) }} UZS</span>
-              <button @click="deleteItem(item.id)" class="text-red-500 text-sm hover:text-red-700">Delete</button>
-            </div>
-          </div>
-          <p v-if="!cat.items?.length" class="text-gray-400 text-sm">No items in this category</p>
-        </div>
+    <template v-else>
+      <div class="flex flex-wrap items-center gap-3">
+        <button class="btn-primary" @click="showCategoryForm = !showCategoryForm">
+          {{ showCategoryForm ? 'Close Category Form' : 'Add Category' }}
+        </button>
       </div>
-    </div>
 
-    <!-- Add Item Modal -->
-    <div v-if="showAddItem" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg w-full max-w-md">
-        <h3 class="text-lg font-bold mb-4">Add Item to {{ selectedCategory?.name }}</h3>
-        <form @submit.prevent="addItem" class="space-y-3">
-          <input v-model="newItem.name" placeholder="Item name" class="w-full px-3 py-2 border rounded" required />
-          <input v-model="newItem.description" placeholder="Description" class="w-full px-3 py-2 border rounded" />
-          <input v-model.number="newItem.base_price" type="number" placeholder="Price (UZS)" class="w-full px-3 py-2 border rounded" required />
-          <div class="flex gap-3">
-            <button type="submit" class="flex-1 bg-green-600 text-white py-2 rounded">Save</button>
-            <button type="button" @click="showAddItem = false" class="flex-1 bg-gray-300 py-2 rounded">Cancel</button>
-          </div>
+      <div v-if="showCategoryForm" class="surface-card p-5">
+        <form class="grid gap-4 md:grid-cols-[1fr_140px_auto]" @submit.prevent="addCategory">
+          <input v-model="newCategory.name" class="input" placeholder="Category name" required />
+          <input v-model.number="newCategory.sort_order" class="input" type="number" placeholder="Order" />
+          <button class="btn-primary" type="submit">Save Category</button>
         </form>
       </div>
-    </div>
+
+      <div v-if="menu?.categories?.length" class="space-y-4">
+        <div v-for="category in menu.categories" :key="category.id" class="surface-card p-5">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--admin-border)] pb-4">
+            <div>
+              <h3 class="text-lg font-semibold">{{ category.name }}</h3>
+              <p class="text-sm text-[var(--admin-text-muted)]">{{ category.items.length }} item(s)</p>
+            </div>
+            <div class="flex gap-2">
+              <button class="btn-secondary" @click="openItemForm(category)">Add Item</button>
+              <button class="btn-danger" @click="deleteCategory(category.id)">Delete</button>
+            </div>
+          </div>
+
+          <div class="mt-4 space-y-3">
+            <div v-for="item in category.items" :key="item.id" class="surface-muted flex items-center justify-between gap-3 px-4 py-4">
+              <div>
+                <p class="font-semibold">{{ item.name }}</p>
+                <p class="mt-1 text-sm text-[var(--admin-text-muted)]">{{ item.description }}</p>
+                <p class="mt-1 text-xs text-[var(--admin-text-subtle)]">{{ item.modifier_groups?.length || 0 }} modifier group(s)</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="font-semibold">{{ formatPrice(item.base_price) }} UZS</span>
+                <button class="btn-danger" @click="deleteItem(item.id)">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <EmptyState
+        v-else
+        :icon="UtensilsCrossed"
+        title="No menu categories yet"
+        description="Create the first category for the active branch to start building its menu."
+        action-label="Add Category"
+        @action="showCategoryForm = true"
+      />
+    </template>
+
+    <Teleport to="body">
+      <div v-if="showItemForm">
+        <div class="slide-panel-backdrop" @click="showItemForm = false" />
+        <aside class="slide-panel">
+          <div class="mb-6 flex items-center justify-between">
+            <div>
+              <p class="text-lg font-semibold">Add Item</p>
+              <p class="text-sm text-[var(--admin-text-muted)]">New item for {{ selectedCategory?.name }}</p>
+            </div>
+            <button class="btn-ghost" @click="showItemForm = false">Close</button>
+          </div>
+          <form class="field-grid" @submit.prevent="addItem">
+            <div>
+              <label class="label">Item Name</label>
+              <input v-model="newItem.name" class="input" required />
+            </div>
+            <div>
+              <label class="label">Description</label>
+              <textarea v-model="newItem.description" class="textarea" />
+            </div>
+            <div>
+              <label class="label">Base Price</label>
+              <input v-model.number="newItem.base_price" class="input" type="number" required />
+            </div>
+            <button class="btn-primary" type="submit">Create Item</button>
+          </form>
+        </aside>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-const { api } = useApi()
+import { UtensilsCrossed } from 'lucide-vue-next'
 
-const menu = ref<any>(null)
-const showAddCategory = ref(false)
-const showAddItem = ref(false)
-const selectedCategory = ref<any>(null)
+interface MenuCategory {
+  id: string
+  name: string
+  items: Array<{
+    id: string
+    name: string
+    description: string
+    base_price: number
+    modifier_groups?: Array<unknown>
+  }>
+}
+
+interface MenuPayload {
+  categories: MenuCategory[]
+}
+
+const { api } = useApi()
+const branchContext = useBranchContext()
+const auth = useAuth()
+
+const menu = ref<MenuPayload | null>(null)
+const selectedCategory = ref<MenuCategory | null>(null)
+const showCategoryForm = ref(false)
+const showItemForm = ref(false)
+
 const newCategory = reactive({ name: '', sort_order: 0 })
 const newItem = reactive({ name: '', description: '', base_price: 0 })
 
-async function loadMenu() {
-  try {
-    menu.value = await api<any>('/admin/menu')
-  } catch (e) {
-    console.error('Failed to load menu', e)
+const requiresSpecificBranch = computed(() => auth.state.staff?.role === 'director' && !branchContext.selectedBranchId.value)
+
+function menuPath(path: string) {
+  if (branchContext.selectedBranchId.value) {
+    const glue = path.includes('?') ? '&' : '?'
+    return `${path}${glue}branch_id=${branchContext.selectedBranchId.value}`
   }
+  return path
+}
+
+async function loadMenu() {
+  if (requiresSpecificBranch.value) {
+    menu.value = null
+    return
+  }
+  menu.value = await api<MenuPayload>(menuPath('/admin/menu'))
 }
 
 async function addCategory() {
-  try {
-    await api('/admin/menu/categories', { method: 'POST', body: { ...newCategory } })
-    newCategory.name = ''
-    newCategory.sort_order = 0
-    showAddCategory.value = false
-    await loadMenu()
-  } catch (e: any) {
-    alert(e?.data?.error || 'Failed to add category')
-  }
+  await api('/admin/menu/categories', {
+    method: 'POST',
+    body: {
+      ...newCategory,
+      branch_id: branchContext.selectedBranchId.value,
+    },
+  })
+  newCategory.name = ''
+  newCategory.sort_order = 0
+  showCategoryForm.value = false
+  await loadMenu()
 }
 
 async function deleteCategory(id: string) {
-  if (!confirm('Delete this category and all its items?')) return
-  try {
-    await api(`/admin/menu/categories/${id}`, { method: 'DELETE' })
-    await loadMenu()
-  } catch (e: any) {
-    alert(e?.data?.error || 'Failed to delete category')
-  }
+  if (!window.confirm('Delete this category and all its items?')) return
+  await api(`/admin/menu/categories/${id}`, { method: 'DELETE' })
+  await loadMenu()
+}
+
+function openItemForm(category: MenuCategory) {
+  selectedCategory.value = category
+  showItemForm.value = true
 }
 
 async function addItem() {
   if (!selectedCategory.value) return
-  try {
-    await api('/admin/menu/items', {
-      method: 'POST',
-      body: {
-        category_id: selectedCategory.value.id,
-        name: newItem.name,
-        description: newItem.description,
-        base_price: newItem.base_price,
-      },
-    })
-    newItem.name = ''
-    newItem.description = ''
-    newItem.base_price = 0
-    showAddItem.value = false
-    await loadMenu()
-  } catch (e: any) {
-    alert(e?.data?.error || 'Failed to add item')
-  }
+  await api('/admin/menu/items', {
+    method: 'POST',
+    body: {
+      branch_id: branchContext.selectedBranchId.value,
+      category_id: selectedCategory.value.id,
+      name: newItem.name,
+      description: newItem.description,
+      base_price: newItem.base_price,
+    },
+  })
+  newItem.name = ''
+  newItem.description = ''
+  newItem.base_price = 0
+  showItemForm.value = false
+  await loadMenu()
 }
 
 async function deleteItem(id: string) {
-  if (!confirm('Delete this item?')) return
-  try {
-    await api(`/admin/menu/items/${id}`, { method: 'DELETE' })
-    await loadMenu()
-  } catch (e: any) {
-    alert(e?.data?.error || 'Failed to delete item')
-  }
+  if (!window.confirm('Delete this item?')) return
+  await api(`/admin/menu/items/${id}`, { method: 'DELETE' })
+  await loadMenu()
 }
 
 function formatPrice(price: number) {
-  return price?.toLocaleString('en-US') || '0'
+  return price.toLocaleString('en-US')
 }
 
 onMounted(loadMenu)
+watch(() => branchContext.selectedBranchId.value, loadMenu)
 </script>

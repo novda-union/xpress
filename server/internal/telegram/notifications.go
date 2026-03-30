@@ -9,7 +9,7 @@ import (
 	"github.com/xpressgo/server/internal/model"
 )
 
-// SendOrderStatusToUser sends order status update to user via DM
+// SendOrderStatusToUser sends order status update to user via DM.
 func (b *Bot) SendOrderStatusToUser(telegramID int64, order *model.Order, storeName string) {
 	if b.api == nil {
 		log.Printf("telegram: bot disabled, would notify user %d about order #%d status: %s", telegramID, order.OrderNumber, order.Status)
@@ -39,10 +39,9 @@ func (b *Bot) SendOrderStatusToUser(telegramID int64, order *model.Order, storeN
 	}
 }
 
-// SendNewOrderToStore sends new order notification to store's Telegram group
-func (b *Bot) SendNewOrderToStore(groupChatID int64, order *model.Order) {
+func (b *Bot) SendNewOrderToChat(groupChatID int64, locationName string, order *model.Order) {
 	if b.api == nil {
-		log.Printf("telegram: bot disabled, would notify store group %d about new order #%d", groupChatID, order.OrderNumber)
+		log.Printf("telegram: bot disabled, would notify group %d about new order #%d", groupChatID, order.OrderNumber)
 		return
 	}
 
@@ -60,8 +59,9 @@ func (b *Bot) SendNewOrderToStore(groupChatID int64, order *model.Order) {
 	}
 
 	text := fmt.Sprintf(
-		"New order #%d!\n%s\nCustomer arrives in ~%d min\nTotal: %s UZS",
+		"New order #%d at %s!\n%s\nCustomer arrives in ~%d min\nTotal: %s UZS",
 		order.OrderNumber,
+		locationName,
 		strings.Join(items, "\n"),
 		order.ETAMinutes,
 		formatPrice(order.TotalPrice),
@@ -73,18 +73,27 @@ func (b *Bot) SendNewOrderToStore(groupChatID int64, order *model.Order) {
 	}
 }
 
-// SendOrderCancelledToStore notifies store about cancellation
-func (b *Bot) SendOrderCancelledToStore(groupChatID int64, orderNumber int) {
+func (b *Bot) SendOrderCancelledToChat(groupChatID int64, locationName string, orderNumber int) {
 	if b.api == nil {
-		log.Printf("telegram: bot disabled, would notify store about cancelled order #%d", orderNumber)
+		log.Printf("telegram: bot disabled, would notify group %d about cancelled order #%d", groupChatID, orderNumber)
 		return
 	}
 
-	text := fmt.Sprintf("Order #%d was cancelled by the customer.", orderNumber)
+	text := fmt.Sprintf("Order #%d at %s was cancelled by the customer.", orderNumber, locationName)
 	msg := tgbotapi.NewMessage(groupChatID, text)
 	if _, err := b.api.Send(msg); err != nil {
 		log.Printf("telegram: failed to send cancellation to group %d: %v", groupChatID, err)
 	}
+}
+
+// SendNewOrderToStore keeps the older store-scoped helper available.
+func (b *Bot) SendNewOrderToStore(groupChatID int64, order *model.Order) {
+	b.SendNewOrderToChat(groupChatID, "your store", order)
+}
+
+// SendOrderCancelledToStore keeps the older store-scoped helper available.
+func (b *Bot) SendOrderCancelledToStore(groupChatID int64, orderNumber int) {
+	b.SendOrderCancelledToChat(groupChatID, "your store", orderNumber)
 }
 
 func formatPrice(price int64) string {

@@ -1,58 +1,63 @@
 <template>
-  <div class="bg-white rounded-lg shadow p-4">
-    <div class="flex justify-between items-start mb-2">
-      <span class="font-bold text-lg">#{{ order.order_number }}</span>
-      <span class="text-xs px-2 py-1 rounded" :class="statusClass">{{ order.status }}</span>
+  <div class="surface-card border-l-4 p-4" :class="borderClass">
+    <div class="mb-3 flex items-start justify-between gap-3">
+      <div>
+        <span class="text-lg font-bold">#{{ order.order_number }}</span>
+        <p class="mt-1 text-xs text-[var(--admin-text-muted)]">
+          {{ formatTime(order.created_at) }} · {{ order.items.length }} item(s)
+        </p>
+      </div>
+      <span class="badge" :class="statusClass">{{ order.status.replace('_', ' ') }}</span>
     </div>
 
-    <p class="text-sm text-gray-500 mb-2">
-      ETA: ~{{ order.eta_minutes }} min | {{ formatTime(order.created_at) }}
+    <p class="mb-3 text-sm text-[var(--admin-text-muted)]">
+      ETA ~{{ order.eta_minutes }} min · Branch {{ order.branch_id.slice(0, 8) }}
     </p>
 
-    <div class="text-sm mb-3 space-y-1">
+    <div class="mb-4 space-y-1 text-sm">
       <div v-for="item in order.items" :key="item.id">
         <span class="font-medium">{{ item.quantity }}x {{ item.item_name }}</span>
-        <span v-if="item.modifiers?.length" class="text-gray-500">
+        <span v-if="item.modifiers?.length" class="text-[var(--admin-text-muted)]">
           ({{ item.modifiers.map((m: any) => m.modifier_name).join(', ') }})
         </span>
       </div>
     </div>
 
-    <p class="font-bold mb-3">{{ formatPrice(order.total_price) }} UZS</p>
+    <p class="mb-4 font-bold">{{ formatPrice(order.total_price) }} UZS</p>
 
     <div class="flex gap-2">
       <button
         v-if="order.status === 'pending'"
         @click="$emit('accept')"
-        class="flex-1 bg-green-600 text-white py-1.5 px-3 rounded text-sm hover:bg-green-700"
+        class="btn-primary flex-1"
       >
         Accept
       </button>
       <button
         v-if="order.status === 'pending'"
         @click="$emit('reject')"
-        class="flex-1 bg-red-600 text-white py-1.5 px-3 rounded text-sm hover:bg-red-700"
+        class="btn-danger flex-1"
       >
         Reject
       </button>
       <button
         v-if="order.status === 'accepted'"
         @click="$emit('accept')"
-        class="flex-1 bg-blue-600 text-white py-1.5 px-3 rounded text-sm hover:bg-blue-700"
+        class="btn-primary flex-1"
       >
         Start Preparing
       </button>
       <button
         v-if="order.status === 'preparing'"
         @click="$emit('mark-ready')"
-        class="flex-1 bg-green-600 text-white py-1.5 px-3 rounded text-sm hover:bg-green-700"
+        class="btn-primary flex-1"
       >
         Mark Ready
       </button>
       <button
         v-if="order.status === 'ready'"
         @click="$emit('picked-up')"
-        class="flex-1 bg-gray-600 text-white py-1.5 px-3 rounded text-sm hover:bg-gray-700"
+        class="btn-secondary flex-1"
       >
         Picked Up
       </button>
@@ -66,15 +71,25 @@ defineEmits(['accept', 'reject', 'mark-ready', 'picked-up'])
 
 const statusClass = computed(() => {
   const cls: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    accepted: 'bg-blue-100 text-blue-800',
-    preparing: 'bg-blue-100 text-blue-800',
-    ready: 'bg-green-100 text-green-800',
-    picked_up: 'bg-gray-100 text-gray-800',
-    rejected: 'bg-red-100 text-red-800',
-    cancelled: 'bg-gray-100 text-gray-800',
+    pending: 'bg-[var(--admin-new-bg)] text-[var(--admin-new)]',
+    accepted: 'bg-[var(--admin-new-bg)] text-[var(--admin-new)]',
+    preparing: 'bg-[var(--admin-preparing-bg)] text-[var(--admin-preparing)]',
+    ready: 'bg-[var(--admin-ready-bg)] text-[var(--admin-ready)]',
+    picked_up: 'status-inactive',
+    rejected: 'bg-red-50 text-[var(--admin-error)]',
+    cancelled: 'status-inactive',
   }
   return cls[props.order?.status] || ''
+})
+
+const borderClass = computed(() => {
+  const cls: Record<string, string> = {
+    pending: 'border-l-[var(--admin-new)]',
+    accepted: 'border-l-[var(--admin-new)]',
+    preparing: 'border-l-[var(--admin-preparing)]',
+    ready: 'border-l-[var(--admin-ready)]',
+  }
+  return cls[props.order?.status] || 'border-l-transparent'
 })
 
 function formatPrice(price: number) {
