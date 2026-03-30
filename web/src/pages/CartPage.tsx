@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MenuHeader } from '../components/menu/MenuHeader'
 import { AppShell } from '../components/layout/AppShell'
+import { Button } from '@/components/ui/button'
 import { api } from '../lib/api'
 import { formatPrice } from '../lib/format'
 import { useCartStore } from '../store/cart'
@@ -57,9 +58,13 @@ export default function CartPage() {
       <div className="min-h-screen px-4 pt-24 text-center">
         <p className="text-lg font-semibold">Your cart is empty</p>
         <p className="mt-2 text-sm text-[var(--tg-theme-hint-color)]">Pick something delicious from a branch nearby.</p>
-        <button type="button" onClick={() => navigate('/')} className="mt-6 rounded-full bg-[var(--xp-brand)] px-5 py-3 text-sm font-semibold text-white">
+        <Button
+          type="button"
+          onClick={() => navigate('/')}
+          className="mt-6 rounded-full px-5"
+        >
           Browse branches
-        </button>
+        </Button>
       </div>
     )
   }
@@ -83,19 +88,37 @@ export default function CartPage() {
                       {item.modifiers.map((modifier) => modifier.name).join(', ') || 'No extras'}
                     </p>
                   </div>
-                  <button type="button" onClick={() => cart.removeItem(index)} className="text-[var(--tg-theme-hint-color)]">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => cart.removeItem(index)}
+                    className="h-8 w-8 text-[var(--tg-theme-hint-color)]"
+                  >
                     <Trash2 className="h-4 w-4" />
-                  </button>
+                  </Button>
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex items-center gap-2 rounded-full bg-[var(--xp-card-bg)] px-2 py-1">
-                    <button type="button" onClick={() => cart.updateQuantity(index, Math.max(1, item.quantity - 1))}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => cart.updateQuantity(index, Math.max(1, item.quantity - 1))}
+                      className="h-7 w-7"
+                    >
                       <Minus className="h-4 w-4" />
-                    </button>
+                    </Button>
                     <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
-                    <button type="button" onClick={() => cart.updateQuantity(index, item.quantity + 1)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => cart.updateQuantity(index, item.quantity + 1)}
+                      className="h-7 w-7"
+                    >
                       <Plus className="h-4 w-4" />
-                    </button>
+                    </Button>
                   </div>
                   <p className="font-semibold">{formatPrice(item.totalPrice)} UZS</p>
                 </div>
@@ -132,14 +155,21 @@ export default function CartPage() {
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--xp-border)] bg-[var(--tg-theme-bg-color)] px-4 pb-safe pt-3">
-        <button
+        <Button
           type="button"
           onClick={placeOrder}
           disabled={loading}
-          className="mx-auto flex h-14 w-full max-w-[32rem] items-center justify-center rounded-[20px] bg-[var(--xp-brand)] px-5 text-base font-semibold text-white disabled:opacity-50"
+          className="mx-auto flex h-14 w-full max-w-[32rem] rounded-[20px] px-5 text-base"
         >
-          {loading ? 'Placing order...' : `Place Order — ${formatPrice(cart.total())} UZS`}
-        </button>
+          {loading ? (
+            <span className="flex items-center gap-2">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Placing order...
+            </span>
+          ) : (
+            `Place Order — ${formatPrice(cart.total())} UZS`
+          )}
+        </Button>
       </div>
     </AppShell>
   )

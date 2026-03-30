@@ -1,4 +1,4 @@
-import type { BranchSummary } from '~/types/auth'
+import type { BranchSummary } from 'types/auth'
 
 export function useBranchContext() {
   const selectedBranchIdState = useState<string | null>('admin-selected-branch-id', () => null)

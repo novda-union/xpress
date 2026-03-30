@@ -1,62 +1,88 @@
 <template>
-  <Teleport to="body">
-    <div v-if="open">
-      <div class="slide-panel-backdrop" @click="$emit('close')" />
-      <aside class="slide-panel">
-        <div class="mb-6 flex items-center justify-between">
-          <div>
-            <p class="text-lg font-semibold">{{ branch ? 'Edit Branch' : 'Add Branch' }}</p>
-            <p class="text-sm text-[var(--admin-text-muted)]">Manage branch contact and location data.</p>
-          </div>
-          <button class="btn-ghost" @click="$emit('close')">Close</button>
+  <Sheet :open="open" @update:open="(val) => !val && $emit('close')">
+    <SheetContent side="right" class="w-full overflow-y-auto sm:max-w-[34rem]">
+      <SheetHeader>
+        <SheetTitle>{{ branch ? 'Edit Branch' : 'Add Branch' }}</SheetTitle>
+        <SheetDescription>Manage branch contact and location data.</SheetDescription>
+      </SheetHeader>
+
+      <form class="mt-6 space-y-4" @submit.prevent="submit">
+        <div class="space-y-1.5">
+          <Label for="branch-name">Name</Label>
+          <Input id="branch-name" v-model="form.name" required />
         </div>
 
-        <form class="field-grid" @submit.prevent="submit">
-          <div>
-            <label class="label">Name</label>
-            <input v-model="form.name" class="input" required />
-          </div>
-          <div>
-            <label class="label">Address</label>
-            <textarea v-model="form.address" class="textarea" required />
-          </div>
-          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label class="label">Latitude</label>
-              <input v-model.number="form.lat" class="input" type="number" step="0.000001" />
-            </div>
-            <div>
-              <label class="label">Longitude</label>
-              <input v-model.number="form.lng" class="input" type="number" step="0.000001" />
-            </div>
-          </div>
-          <div>
-            <label class="label">Banner Image URL</label>
-            <input v-model="form.banner_image_url" class="input" placeholder="https://..." />
-          </div>
-          <div>
-            <label class="label">Telegram Group Chat ID</label>
-            <input v-model.number="form.telegram_group_chat_id" class="input" type="number" />
-          </div>
-          <label class="flex items-center gap-3 rounded-2xl border border-[var(--admin-border)] bg-white px-4 py-3">
-            <input v-model="form.is_active" type="checkbox" />
-            <span class="text-sm font-medium">Branch is active</span>
-          </label>
+        <div class="space-y-1.5">
+          <Label for="branch-address">Address</Label>
+          <Textarea id="branch-address" v-model="form.address" required />
+        </div>
 
-          <div class="flex gap-3 pt-2">
-            <button type="submit" class="btn-primary flex-1" :disabled="loading">
-              {{ loading ? 'Saving...' : branch ? 'Save Changes' : 'Create Branch' }}
-            </button>
-            <button type="button" class="btn-secondary" @click="$emit('close')">Cancel</button>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <Label for="branch-lat">Latitude</Label>
+            <Input
+              id="branch-lat"
+              :model-value="form.lat ?? undefined"
+              type="number"
+              step="0.000001"
+              @update:model-value="updateLat"
+            />
           </div>
-        </form>
-      </aside>
-    </div>
-  </Teleport>
+          <div class="space-y-1.5">
+            <Label for="branch-lng">Longitude</Label>
+            <Input
+              id="branch-lng"
+              :model-value="form.lng ?? undefined"
+              type="number"
+              step="0.000001"
+              @update:model-value="updateLng"
+            />
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <Label for="branch-banner">Banner Image URL</Label>
+          <Input id="branch-banner" v-model="form.banner_image_url" placeholder="https://..." />
+        </div>
+
+        <div class="space-y-1.5">
+          <Label for="branch-tg">Telegram Group Chat ID</Label>
+          <Input
+            id="branch-tg"
+            :model-value="form.telegram_group_chat_id ?? undefined"
+            type="number"
+            @update:model-value="updateTelegramGroupChatId"
+          />
+        </div>
+
+        <div class="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+          <Checkbox id="branch-active" v-model:checked="form.is_active" />
+          <Label for="branch-active" class="cursor-pointer font-medium">Branch is active</Label>
+        </div>
+
+        <SheetFooter class="pt-2">
+          <Button type="button" variant="outline" @click="$emit('close')">Cancel</Button>
+          <Button type="submit" :disabled="loading">
+            <span v-if="loading" class="flex items-center gap-2">
+              <span class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Saving...
+            </span>
+            <span v-else>{{ branch ? 'Save Changes' : 'Create Branch' }}</span>
+          </Button>
+        </SheetFooter>
+      </form>
+    </SheetContent>
+  </Sheet>
 </template>
 
 <script setup lang="ts">
-import type { BranchSummary } from '~/types/auth'
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
+import type { BranchSummary } from 'types/auth'
 
 const props = defineProps<{
   branch?: BranchSummary | null
@@ -100,5 +126,23 @@ function submit() {
     lng: Number.isFinite(form.lng) ? form.lng : null,
     telegram_group_chat_id: Number.isFinite(form.telegram_group_chat_id) ? form.telegram_group_chat_id : null,
   })
+}
+
+function updateLat(value: string | number) {
+  form.lat = toNullableNumber(value)
+}
+
+function updateLng(value: string | number) {
+  form.lng = toNullableNumber(value)
+}
+
+function updateTelegramGroupChatId(value: string | number) {
+  form.telegram_group_chat_id = toNullableNumber(value)
+}
+
+function toNullableNumber(value: string | number) {
+  if (value === '') return null
+  const parsed = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(parsed) ? parsed : null
 }
 </script>

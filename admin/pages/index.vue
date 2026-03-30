@@ -2,33 +2,35 @@
   <div class="space-y-6">
     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <StatCard :icon="ClipboardList" label="Today's Orders" :value="stats.totalOrders" />
-      <StatCard :icon="Clock3" label="Pending Now" :value="stats.pendingOrders" hint="Waiting for action" hint-class="text-[var(--admin-warning)]" />
+      <StatCard :icon="Clock3" label="Pending Now" :value="stats.pendingOrders" hint="Waiting for action" hint-class="text-amber-600" />
       <StatCard :icon="BadgeDollarSign" label="Revenue" :value="`${formatPrice(stats.revenue)} UZS`" />
       <StatCard :icon="Store" label="Active Branches" :value="stats.activeBranches" />
     </section>
 
     <section v-if="branchCards.length" class="grid gap-4 xl:grid-cols-3">
-      <div v-for="branch in branchCards" :key="branch.id" class="surface-card p-5">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <p class="text-lg font-semibold">{{ branch.name }}</p>
-            <p class="mt-1 text-sm text-[var(--admin-text-muted)]">{{ branch.address }}</p>
+      <Card v-for="branch in branchCards" :key="branch.id">
+        <CardContent class="p-5">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-lg font-semibold">{{ branch.name }}</p>
+              <p class="mt-1 text-sm text-muted-foreground">{{ branch.address }}</p>
+            </div>
+            <Badge :variant="branch.is_active ? 'default' : 'secondary'">
+              {{ branch.is_active ? 'Active' : 'Inactive' }}
+            </Badge>
           </div>
-          <span class="badge badge-dot" :class="branch.is_active ? 'status-active' : 'status-inactive'">
-            {{ branch.is_active ? 'Active' : 'Inactive' }}
-          </span>
-        </div>
-        <div class="mt-4 grid grid-cols-2 gap-3">
-          <div class="surface-muted px-3 py-3">
-            <p class="text-xs uppercase tracking-wide text-[var(--admin-text-muted)]">Orders</p>
-            <p class="mt-1 text-xl font-semibold">{{ branch.orderCount }}</p>
+          <div class="mt-4 grid grid-cols-2 gap-3">
+            <div class="rounded-lg bg-muted px-3 py-3">
+              <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Orders</p>
+              <p class="mt-1 text-xl font-semibold">{{ branch.orderCount }}</p>
+            </div>
+            <div class="rounded-lg bg-muted px-3 py-3">
+              <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Revenue</p>
+              <p class="mt-1 text-xl font-semibold">{{ formatPrice(branch.revenue) }}</p>
+            </div>
           </div>
-          <div class="surface-muted px-3 py-3">
-            <p class="text-xs uppercase tracking-wide text-[var(--admin-text-muted)]">Revenue</p>
-            <p class="mt-1 text-xl font-semibold">{{ formatPrice(branch.revenue) }}</p>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </section>
 
     <EmptyState
@@ -42,7 +44,9 @@
 
 <script setup lang="ts">
 import { BadgeDollarSign, ClipboardList, Clock3, LayoutDashboard, Store } from 'lucide-vue-next'
-import type { AdminOrder, BranchSummary } from '~/types/auth'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import type { AdminOrder, BranchSummary } from 'types/auth'
 
 const { api } = useApi()
 const branchContext = useBranchContext()

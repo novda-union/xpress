@@ -1,4 +1,4 @@
-import type { StaffRole } from '~/types/auth'
+import type { StaffRole } from 'types/auth'
 
 const routeRules: Record<string, StaffRole[]> = {
   '/': ['director', 'manager', 'barista'],

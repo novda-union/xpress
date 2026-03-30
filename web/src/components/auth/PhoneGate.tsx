@@ -1,4 +1,5 @@
 import { LoaderCircle, PhoneCall } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface PhoneGateProps {
   loading: boolean
@@ -18,15 +19,15 @@ export function PhoneGate({ loading, error, onRequestAccess }: PhoneGateProps) {
           We need your phone to identify you and keep your orders safe.
         </p>
 
-        <button
+        <Button
           type="button"
           onClick={() => void onRequestAccess()}
           disabled={loading}
-          className="mt-8 flex h-14 w-full items-center justify-center gap-2 rounded-[20px] bg-[var(--xp-brand)] px-5 text-base font-semibold text-white transition-opacity disabled:opacity-70"
+          className="mt-8 h-14 w-full rounded-[20px] text-base"
         >
           {loading ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <PhoneCall className="h-5 w-5" />}
           Share Phone Number
-        </button>
+        </Button>
 
         <p className="mt-4 text-sm text-[var(--tg-theme-hint-color)]">
           Your number is only used for order tracking.

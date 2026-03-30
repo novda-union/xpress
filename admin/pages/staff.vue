@@ -1,7 +1,10 @@
 <template>
   <div class="space-y-6">
     <div class="flex items-center justify-between">
-      <button class="btn-primary" @click="openCreate">Add Staff</button>
+      <Button @click="openCreate">
+        <Plus class="h-4 w-4" />
+        Add Staff
+      </Button>
     </div>
 
     <EmptyState
@@ -32,11 +35,12 @@
 </template>
 
 <script setup lang="ts">
-import { Users } from 'lucide-vue-next'
-import StaffForm from '~/components/staff/StaffForm.vue'
-import StaffGroupList from '~/components/staff/StaffGroupList.vue'
-import EmptyState from '~/components/ui/EmptyState.vue'
-import type { BranchSummary, Staff, StaffGroup } from '~/types/auth'
+import { Plus, Users } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
+import StaffForm from 'components/staff/StaffForm.vue'
+import StaffGroupList from 'components/staff/StaffGroupList.vue'
+import EmptyState from 'components/ui/EmptyState.vue'
+import type { BranchSummary, Staff, StaffGroup } from 'types/auth'
 
 const { api } = useApi()
 const auth = useAuth()

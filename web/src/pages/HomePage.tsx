@@ -56,11 +56,10 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-          <ViewToggle value={view} onChange={setView} />
         </div>
       </div>
     ),
-    [featuredStore, location.source, storeSlug, view],
+    [featuredStore, location.source, storeSlug],
   )
 
   if (!auth.isAuthenticated) {
@@ -68,41 +67,44 @@ export default function HomePage() {
   }
 
   return (
-    <AppShell header={topBar}>
-      <CategoryTabs value={discovery.category} onChange={discovery.setCategory} />
-      <div className="xp-page-padding pb-6">
-        {view === 'map' ? (
-          <Suspense fallback={<div className="h-[calc(100vh-5rem)] w-full animate-pulse rounded-[24px] bg-[var(--xp-card-bg)]" />}>
-            <DiscoveryMap
-              branches={visibleBranches}
-              center={location}
-              selectedBranchId={selectedBranch?.branch_id ?? null}
-              visible
-              onSelect={setSelectedBranch}
-            />
-          </Suspense>
-        ) : null}
-
-        <div className={`${view === 'list' ? 'block' : 'hidden'} space-y-4`}>
-          {visibleBranches.map((branch) => (
-            <BranchListCard
-              key={branch.branch_id}
-              branch={branch}
-              onSelect={(selected) => navigate(`/branch/${selected.branch_id}`)}
-            />
-          ))}
-          {visibleBranches.length === 0 ? (
-            <div className="xp-card px-6 py-10 text-center">
-              <p className="text-lg font-semibold">No matching branches</p>
-              <p className="mt-2 text-sm text-[var(--tg-theme-hint-color)]">
-                Try another store link or return to discovery.
-              </p>
-            </div>
+    <>
+      <AppShell header={topBar}>
+        <CategoryTabs value={discovery.category} onChange={discovery.setCategory} />
+        <div className="xp-page-padding pb-24">
+          {view === 'map' ? (
+            <Suspense fallback={<div className="h-[calc(100vh-5rem)] w-full animate-pulse rounded-[24px] bg-[var(--xp-card-bg)]" />}>
+              <DiscoveryMap
+                branches={visibleBranches}
+                center={location}
+                selectedBranchId={selectedBranch?.branch_id ?? null}
+                visible
+                onSelect={setSelectedBranch}
+              />
+            </Suspense>
           ) : null}
-        </div>
-      </div>
 
-      <BranchSheet branch={selectedBranch} onClose={() => setSelectedBranch(null)} />
-    </AppShell>
+          <div className={`${view === 'list' ? 'block' : 'hidden'} space-y-4`}>
+            {visibleBranches.map((branch) => (
+              <BranchListCard
+                key={branch.branch_id}
+                branch={branch}
+                onSelect={(selected) => navigate(`/branch/${selected.branch_id}`)}
+              />
+            ))}
+            {visibleBranches.length === 0 ? (
+              <div className="xp-card px-6 py-10 text-center">
+                <p className="text-lg font-semibold">No matching branches</p>
+                <p className="mt-2 text-sm text-[var(--tg-theme-hint-color)]">
+                  Try another store link or return to discovery.
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <BranchSheet branch={selectedBranch} onClose={() => setSelectedBranch(null)} />
+      </AppShell>
+      <ViewToggle value={view} onChange={setView} />
+    </>
   )
 }

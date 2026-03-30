@@ -1,10 +1,10 @@
 <template>
   <div class="space-y-6">
     <div class="grid gap-4 xl:grid-cols-3">
-      <section class="kanban-column border-t-2 border-t-[var(--admin-new)]">
-        <div class="mb-4 flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-[var(--admin-new)]">New Orders</h3>
-          <span class="badge bg-[var(--admin-new-bg)] text-[var(--admin-new)]">{{ newOrders.length }}</span>
+      <section class="space-y-3 rounded-xl border bg-muted/30 p-4 border-t-4 border-t-blue-500">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-blue-700">New Orders</h3>
+          <Badge class="bg-blue-100 text-blue-700 hover:bg-blue-100">{{ newOrders.length }}</Badge>
         </div>
         <div class="space-y-3">
           <OrderCard
@@ -14,29 +14,29 @@
             @accept="updateStatus(order.id, order.status === 'pending' ? 'accepted' : 'preparing')"
             @reject="rejectOrder(order.id)"
           />
-          <p v-if="!newOrders.length" class="text-sm text-[var(--admin-text-muted)]">No new orders.</p>
+          <p v-if="!newOrders.length" class="text-sm text-muted-foreground">No new orders.</p>
         </div>
       </section>
 
-      <section class="kanban-column border-t-2 border-t-[var(--admin-preparing)]">
-        <div class="mb-4 flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-[var(--admin-preparing)]">Preparing</h3>
-          <span class="badge bg-[var(--admin-preparing-bg)] text-[var(--admin-preparing)]">{{ preparingOrders.length }}</span>
+      <section class="space-y-3 rounded-xl border bg-muted/30 p-4 border-t-4 border-t-amber-500">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-amber-700">Preparing</h3>
+          <Badge class="bg-amber-100 text-amber-700 hover:bg-amber-100">{{ preparingOrders.length }}</Badge>
         </div>
         <div class="space-y-3">
           <OrderCard v-for="order in preparingOrders" :key="order.id" :order="order" @mark-ready="updateStatus(order.id, 'ready')" />
-          <p v-if="!preparingOrders.length" class="text-sm text-[var(--admin-text-muted)]">Nothing in preparation.</p>
+          <p v-if="!preparingOrders.length" class="text-sm text-muted-foreground">Nothing in preparation.</p>
         </div>
       </section>
 
-      <section class="kanban-column border-t-2 border-t-[var(--admin-ready)]">
-        <div class="mb-4 flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-[var(--admin-ready)]">Ready</h3>
-          <span class="badge bg-[var(--admin-ready-bg)] text-[var(--admin-ready)]">{{ readyOrders.length }}</span>
+      <section class="space-y-3 rounded-xl border bg-muted/30 p-4 border-t-4 border-t-green-500">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold text-green-700">Ready</h3>
+          <Badge class="bg-green-100 text-green-700 hover:bg-green-100">{{ readyOrders.length }}</Badge>
         </div>
         <div class="space-y-3">
           <OrderCard v-for="order in readyOrders" :key="order.id" :order="order" @picked-up="updateStatus(order.id, 'picked_up')" />
-          <p v-if="!readyOrders.length" class="text-sm text-[var(--admin-text-muted)]">No ready orders.</p>
+          <p v-if="!readyOrders.length" class="text-sm text-muted-foreground">No ready orders.</p>
         </div>
       </section>
     </div>
@@ -44,7 +44,8 @@
 </template>
 
 <script setup lang="ts">
-import type { AdminOrder } from '~/types/auth'
+import { Badge } from '@/components/ui/badge'
+import type { AdminOrder } from 'types/auth'
 
 const { api } = useApi()
 const { connect, on } = useAdminWebSocket()

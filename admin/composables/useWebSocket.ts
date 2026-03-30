@@ -1,4 +1,4 @@
-import type { AdminOrder } from '~/types/auth'
+import type { AdminOrder } from 'types/auth'
 
 interface WSMessage {
   type: string

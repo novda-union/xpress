@@ -1,61 +1,77 @@
 <template>
-  <Teleport to="body">
-    <div v-if="open">
-      <div class="slide-panel-backdrop" @click="$emit('close')" />
-      <aside class="slide-panel">
-        <div class="mb-6 flex items-center justify-between">
-          <div>
-            <p class="text-lg font-semibold">{{ staff ? 'Edit Staff' : 'Add Staff' }}</p>
-            <p class="text-sm text-[var(--admin-text-muted)]">Manage credentials and branch assignment.</p>
-          </div>
-          <button class="btn-ghost" @click="$emit('close')">Close</button>
+  <Sheet :open="open" @update:open="(val) => !val && $emit('close')">
+    <SheetContent side="right" class="w-full overflow-y-auto sm:max-w-[34rem]">
+      <SheetHeader>
+        <SheetTitle>{{ staff ? 'Edit Staff' : 'Add Staff' }}</SheetTitle>
+        <SheetDescription>Manage credentials and branch assignment.</SheetDescription>
+      </SheetHeader>
+
+      <form class="mt-6 space-y-4" @submit.prevent="submit">
+        <div class="space-y-1.5">
+          <Label for="staff-name">Full Name</Label>
+          <Input id="staff-name" v-model="form.name" required />
         </div>
 
-        <form class="field-grid" @submit.prevent="submit">
-          <div>
-            <label class="label">Full Name</label>
-            <input v-model="form.name" class="input" required />
-          </div>
-          <div>
-            <label class="label">Staff Code</label>
-            <input v-model="form.staff_code" class="input" required />
-          </div>
-          <div>
-            <label class="label">{{ staff ? 'New Password' : 'Password' }}</label>
-            <input v-model="form.password" class="input" type="password" :required="!staff" />
-          </div>
-          <div>
-            <label class="label">Role</label>
-            <select v-model="form.role" class="select">
-              <option v-for="role in availableRoles" :key="role" :value="role">
-                {{ role }}
-              </option>
-            </select>
-          </div>
-          <div v-if="showBranchSelect">
-            <label class="label">Branch</label>
-            <select v-model="form.branch_id" class="select">
-              <option disabled value="">Select branch</option>
-              <option v-for="branch in branches" :key="branch.id" :value="branch.id">
-                {{ branch.name }}
-              </option>
-            </select>
-          </div>
+        <div class="space-y-1.5">
+          <Label for="staff-code">Staff Code</Label>
+          <Input id="staff-code" v-model="form.staff_code" required />
+        </div>
 
-          <div class="flex gap-3 pt-2">
-            <button type="submit" class="btn-primary flex-1" :disabled="loading">
-              {{ loading ? 'Saving...' : staff ? 'Save Changes' : 'Create Staff' }}
-            </button>
-            <button type="button" class="btn-secondary" @click="$emit('close')">Cancel</button>
-          </div>
-        </form>
-      </aside>
-    </div>
-  </Teleport>
+        <div class="space-y-1.5">
+          <Label for="staff-password">{{ staff ? 'New Password' : 'Password' }}</Label>
+          <Input id="staff-password" v-model="form.password" type="password" :required="!staff" />
+        </div>
+
+        <div class="space-y-1.5">
+          <Label for="staff-role">Role</Label>
+          <Select v-model="form.role">
+            <SelectTrigger id="staff-role" class="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="r in availableRoles" :key="r" :value="r">
+                {{ r.charAt(0).toUpperCase() + r.slice(1) }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div v-if="showBranchSelect" class="space-y-1.5">
+          <Label for="staff-branch">Branch</Label>
+          <Select v-model="form.branch_id">
+            <SelectTrigger id="staff-branch" class="w-full">
+              <SelectValue placeholder="Select branch" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="branch in branches" :key="branch.id" :value="branch.id">
+                {{ branch.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <SheetFooter class="pt-2">
+          <Button type="button" variant="outline" @click="$emit('close')">Cancel</Button>
+          <Button type="submit" :disabled="loading">
+            <span v-if="loading" class="flex items-center gap-2">
+              <span class="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Saving...
+            </span>
+            <span v-else>{{ staff ? 'Save Changes' : 'Create Staff' }}</span>
+          </Button>
+        </SheetFooter>
+      </form>
+    </SheetContent>
+  </Sheet>
 </template>
 
 <script setup lang="ts">
-import type { BranchSummary, Staff, StaffRole } from '~/types/auth'
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import type { BranchSummary, Staff, StaffRole } from 'types/auth'
 
 const props = defineProps<{
   branches: BranchSummary[]

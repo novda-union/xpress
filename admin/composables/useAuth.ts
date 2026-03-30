@@ -1,4 +1,4 @@
-import type { AuthState, Staff } from '~/types/auth'
+import type { AuthState, Staff } from "types/auth"
 
 const state = reactive<AuthState>({
   token: null,

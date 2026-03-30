@@ -1,4 +1,5 @@
 import { MapPin } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { formatDistance } from '../../lib/distance'
 import type { DiscoverBranch } from '../../types'
 
@@ -8,11 +9,11 @@ interface BranchListCardProps {
 }
 
 const badgeClasses: Record<string, string> = {
-  bar: 'bg-purple-500/15 text-purple-600',
-  cafe: 'bg-amber-500/15 text-amber-600',
-  coffee: 'bg-orange-900/10 text-orange-700',
-  restaurant: 'bg-green-500/15 text-green-600',
-  fastfood: 'bg-red-500/15 text-red-600',
+  bar: 'bg-purple-500/15 text-purple-600 hover:bg-purple-500/15',
+  cafe: 'bg-amber-500/15 text-amber-600 hover:bg-amber-500/15',
+  coffee: 'bg-orange-900/10 text-orange-700 hover:bg-orange-900/10',
+  restaurant: 'bg-green-500/15 text-green-600 hover:bg-green-500/15',
+  fastfood: 'bg-red-500/15 text-red-600 hover:bg-red-500/15',
 }
 
 export function BranchListCard({ branch, onSelect }: BranchListCardProps) {
@@ -20,7 +21,7 @@ export function BranchListCard({ branch, onSelect }: BranchListCardProps) {
     <button
       type="button"
       onClick={() => onSelect(branch)}
-      className="xp-card flex w-full gap-4 p-4 text-left transition-transform hover:-translate-y-0.5 hover:opacity-95"
+      className="xp-card flex w-full cursor-pointer gap-4 p-4 text-left transition-transform hover:-translate-y-0.5 hover:opacity-95"
     >
       <img
         src={branch.store_logo_url || 'https://placehold.co/120x120?text=XG'}
@@ -41,9 +42,12 @@ export function BranchListCard({ branch, onSelect }: BranchListCardProps) {
           <MapPin className="h-3.5 w-3.5" />
           <span className="line-clamp-2">{branch.branch_address}</span>
         </p>
-        <span className={`mt-3 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeClasses[branch.store_category]}`}>
+        <Badge
+          variant="secondary"
+          className={`mt-3 text-[11px] ${badgeClasses[branch.store_category] ?? ''}`}
+        >
           {branch.store_category}
-        </span>
+        </Badge>
       </div>
     </button>
   )

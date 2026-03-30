@@ -1,20 +1,26 @@
 <template>
-  <header class="sticky top-0 z-10 border-b border-[var(--admin-border)] bg-white/90 backdrop-blur">
-    <div class="flex min-h-16 items-center justify-between gap-4 px-4 py-3 lg:px-6">
-      <div>
-        <p class="page-title">{{ title }}</p>
-        <p class="page-subtitle">{{ subtitle }}</p>
-      </div>
+  <header class="sticky top-0 z-10 flex h-16 shrink-0 items-center border-b bg-background/90 backdrop-blur">
+    <div class="flex flex-1 items-center justify-between gap-4 px-4 lg:px-6">
       <div class="flex items-center gap-3">
-        <div class="hidden rounded-full bg-[var(--admin-accent-bg)] px-3 py-2 text-xs font-semibold text-[var(--admin-accent)] md:block">
-          {{ branchContext.selectedBranchLabel.value }}
+        <SidebarTrigger class="-ml-1" />
+        <Separator orientation="vertical" class="h-4" />
+        <div>
+          <p class="text-base font-semibold leading-tight">{{ title }}</p>
+          <p class="hidden text-xs text-muted-foreground sm:block">{{ subtitle }}</p>
         </div>
       </div>
+      <Badge variant="secondary" class="hidden md:inline-flex font-medium">
+        {{ branchContext.selectedBranchLabel.value }}
+      </Badge>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+import { SidebarTrigger } from '@/components/ui/sidebar'
+import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
+
 const route = useRoute()
 const branchContext = useBranchContext()
 

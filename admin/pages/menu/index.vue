@@ -1,52 +1,62 @@
 <template>
   <div class="space-y-6">
-    <div v-if="requiresSpecificBranch" class="surface-card p-8 text-center">
-      <p class="text-lg font-semibold">Select a branch to manage its menu.</p>
-      <p class="mt-2 text-sm text-[var(--admin-text-muted)]">Store-wide menu editing is disabled because categories and items are now branch scoped.</p>
-    </div>
+    <Card v-if="requiresSpecificBranch">
+      <CardContent class="p-8 text-center">
+        <p class="text-lg font-semibold">Select a branch to manage its menu.</p>
+        <p class="mt-2 text-sm text-muted-foreground">Store-wide menu editing is disabled because categories and items are now branch scoped.</p>
+      </CardContent>
+    </Card>
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
-        <button class="btn-primary" @click="showCategoryForm = !showCategoryForm">
+        <Button @click="showCategoryForm = !showCategoryForm">
           {{ showCategoryForm ? 'Close Category Form' : 'Add Category' }}
-        </button>
+        </Button>
       </div>
 
-      <div v-if="showCategoryForm" class="surface-card p-5">
-        <form class="grid gap-4 md:grid-cols-[1fr_140px_auto]" @submit.prevent="addCategory">
-          <input v-model="newCategory.name" class="input" placeholder="Category name" required />
-          <input v-model.number="newCategory.sort_order" class="input" type="number" placeholder="Order" />
-          <button class="btn-primary" type="submit">Save Category</button>
-        </form>
-      </div>
+      <Card v-if="showCategoryForm">
+        <CardContent class="p-5">
+          <form class="grid gap-4 md:grid-cols-[1fr_140px_auto]" @submit.prevent="addCategory">
+            <Input v-model="newCategory.name" placeholder="Category name" required />
+            <Input v-model.number="newCategory.sort_order" type="number" placeholder="Order" />
+            <Button type="submit">Save Category</Button>
+          </form>
+        </CardContent>
+      </Card>
 
       <div v-if="menu?.categories?.length" class="space-y-4">
-        <div v-for="category in menu.categories" :key="category.id" class="surface-card p-5">
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--admin-border)] pb-4">
-            <div>
-              <h3 class="text-lg font-semibold">{{ category.name }}</h3>
-              <p class="text-sm text-[var(--admin-text-muted)]">{{ category.items.length }} item(s)</p>
-            </div>
-            <div class="flex gap-2">
-              <button class="btn-secondary" @click="openItemForm(category)">Add Item</button>
-              <button class="btn-danger" @click="deleteCategory(category.id)">Delete</button>
-            </div>
-          </div>
-
-          <div class="mt-4 space-y-3">
-            <div v-for="item in category.items" :key="item.id" class="surface-muted flex items-center justify-between gap-3 px-4 py-4">
+        <Card v-for="category in menu.categories" :key="category.id">
+          <CardContent class="p-5">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
               <div>
-                <p class="font-semibold">{{ item.name }}</p>
-                <p class="mt-1 text-sm text-[var(--admin-text-muted)]">{{ item.description }}</p>
-                <p class="mt-1 text-xs text-[var(--admin-text-subtle)]">{{ item.modifier_groups?.length || 0 }} modifier group(s)</p>
+                <h3 class="text-lg font-semibold">{{ category.name }}</h3>
+                <p class="text-sm text-muted-foreground">{{ category.items.length }} item(s)</p>
               </div>
-              <div class="flex items-center gap-3">
-                <span class="font-semibold">{{ formatPrice(item.base_price) }} UZS</span>
-                <button class="btn-danger" @click="deleteItem(item.id)">Delete</button>
+              <div class="flex gap-2">
+                <Button variant="outline" size="sm" @click="openItemForm(category)">Add Item</Button>
+                <Button variant="destructive" size="sm" @click="deleteCategory(category.id)">Delete</Button>
               </div>
             </div>
-          </div>
-        </div>
+
+            <div class="mt-4 space-y-3">
+              <div
+                v-for="item in category.items"
+                :key="item.id"
+                class="flex items-center justify-between gap-3 rounded-lg bg-muted/50 px-4 py-4"
+              >
+                <div>
+                  <p class="font-semibold">{{ item.name }}</p>
+                  <p class="mt-1 text-sm text-muted-foreground">{{ item.description }}</p>
+                  <p class="mt-1 text-xs text-muted-foreground/70">{{ item.modifier_groups?.length || 0 }} modifier group(s)</p>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="font-semibold">{{ formatPrice(item.base_price) }} UZS</span>
+                  <Button variant="destructive" size="sm" @click="deleteItem(item.id)">Delete</Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
       <EmptyState
         v-else
@@ -58,40 +68,43 @@
       />
     </template>
 
-    <Teleport to="body">
-      <div v-if="showItemForm">
-        <div class="slide-panel-backdrop" @click="showItemForm = false" />
-        <aside class="slide-panel">
-          <div class="mb-6 flex items-center justify-between">
-            <div>
-              <p class="text-lg font-semibold">Add Item</p>
-              <p class="text-sm text-[var(--admin-text-muted)]">New item for {{ selectedCategory?.name }}</p>
-            </div>
-            <button class="btn-ghost" @click="showItemForm = false">Close</button>
+    <Sheet :open="showItemForm" @update:open="(val) => !val && (showItemForm = false)">
+      <SheetContent side="right" class="w-full overflow-y-auto sm:max-w-[34rem]">
+        <SheetHeader>
+          <SheetTitle>Add Item</SheetTitle>
+          <SheetDescription>New item for {{ selectedCategory?.name }}</SheetDescription>
+        </SheetHeader>
+        <form class="mt-6 space-y-4" @submit.prevent="addItem">
+          <div class="space-y-1.5">
+            <Label for="item-name">Item Name</Label>
+            <Input id="item-name" v-model="newItem.name" required />
           </div>
-          <form class="field-grid" @submit.prevent="addItem">
-            <div>
-              <label class="label">Item Name</label>
-              <input v-model="newItem.name" class="input" required />
-            </div>
-            <div>
-              <label class="label">Description</label>
-              <textarea v-model="newItem.description" class="textarea" />
-            </div>
-            <div>
-              <label class="label">Base Price</label>
-              <input v-model.number="newItem.base_price" class="input" type="number" required />
-            </div>
-            <button class="btn-primary" type="submit">Create Item</button>
-          </form>
-        </aside>
-      </div>
-    </Teleport>
+          <div class="space-y-1.5">
+            <Label for="item-desc">Description</Label>
+            <Textarea id="item-desc" v-model="newItem.description" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="item-price">Base Price</Label>
+            <Input id="item-price" v-model.number="newItem.base_price" type="number" required />
+          </div>
+          <SheetFooter>
+            <Button type="button" variant="outline" @click="showItemForm = false">Cancel</Button>
+            <Button type="submit">Create Item</Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
   </div>
 </template>
 
 <script setup lang="ts">
 import { UtensilsCrossed } from 'lucide-vue-next'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 
 interface MenuCategory {
   id: string
@@ -142,10 +155,7 @@ async function loadMenu() {
 async function addCategory() {
   await api('/admin/menu/categories', {
     method: 'POST',
-    body: {
-      ...newCategory,
-      branch_id: branchContext.selectedBranchId.value,
-    },
+    body: { ...newCategory, branch_id: branchContext.selectedBranchId.value },
   })
   newCategory.name = ''
   newCategory.sort_order = 0

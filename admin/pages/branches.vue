@@ -1,7 +1,10 @@
 <template>
   <div class="space-y-6">
     <div class="flex items-center justify-between">
-      <button class="btn-primary" @click="openCreate">Add Branch</button>
+      <Button @click="openCreate">
+        <Plus class="h-4 w-4" />
+        Add Branch
+      </Button>
     </div>
 
     <EmptyState
@@ -30,11 +33,12 @@
 </template>
 
 <script setup lang="ts">
-import { Store } from 'lucide-vue-next'
-import BranchForm from '~/components/branches/BranchForm.vue'
-import BranchTable from '~/components/branches/BranchTable.vue'
-import EmptyState from '~/components/ui/EmptyState.vue'
-import type { BranchSummary } from '~/types/auth'
+import { Plus, Store } from 'lucide-vue-next'
+import { Button } from '@/components/ui/button'
+import BranchForm from 'components/branches/BranchForm.vue'
+import BranchTable from 'components/branches/BranchTable.vue'
+import EmptyState from 'components/ui/EmptyState.vue'
+import type { BranchSummary } from 'types/auth'
 
 const { api } = useApi()
 const branchContext = useBranchContext()
