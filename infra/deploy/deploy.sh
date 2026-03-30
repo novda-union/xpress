@@ -38,7 +38,24 @@ for i in $(seq 1 30); do
   [ "$i" -eq 30 ] && { echo "server did not become ready in time"; exit 1; }
   sleep 2
 done
-curl --fail --silent --show-error "https://customer.novdaunion.uz/" >/dev/null
-curl --fail --silent --show-error "https://admin.novdaunion.uz/" >/dev/null
+echo "waiting for customer app to be ready..."
+for i in $(seq 1 30); do
+  if curl --fail --silent --show-error "https://customer.novdaunion.uz/" >/dev/null 2>&1; then
+    echo "customer app is ready"
+    break
+  fi
+  [ "$i" -eq 30 ] && { echo "customer app did not become ready in time"; exit 1; }
+  sleep 2
+done
+
+echo "waiting for admin app to be ready..."
+for i in $(seq 1 30); do
+  if curl --fail --silent --show-error "https://admin.novdaunion.uz/" >/dev/null 2>&1; then
+    echo "admin app is ready"
+    break
+  fi
+  [ "$i" -eq 30 ] && { echo "admin app did not become ready in time"; exit 1; }
+  sleep 2
+done
 
 echo "deployment completed successfully"
