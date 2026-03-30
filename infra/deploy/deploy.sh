@@ -23,11 +23,11 @@ set -a
 . "$ENV_FILE"
 set +a
 
-git fetch origin main
-git reset --hard origin/main
+git fetch origin master
+git reset --hard origin/master
 
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --build
-go run server/cmd/migrate/main.go
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T server ./migrate
 
 curl --fail --silent --show-error "$HEALTH_URL" >/dev/null
 curl --fail --silent --show-error "https://customer.novdaunion.uz/" >/dev/null
