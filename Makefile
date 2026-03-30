@@ -1,4 +1,4 @@
-.PHONY: up down restart logs migrate seed server web admin quality quality-fix quality-server quality-web quality-admin fmt fmt-check lint typecheck test
+.PHONY: up down restart fresh logs migrate seed server web admin quality quality-fix quality-server quality-web quality-admin fmt fmt-check lint typecheck test
 
 up:
 	docker compose up -d
@@ -8,6 +8,13 @@ down:
 
 restart:
 	docker compose down && docker compose up -d
+
+fresh:
+	docker compose down -v --remove-orphans
+	rm -rf web/dist admin/.nuxt admin/.output server/tmp server/bin
+	docker compose up -d --build
+	$(MAKE) migrate
+	$(MAKE) seed
 
 logs:
 	docker compose logs -f
