@@ -76,6 +76,7 @@ These are intentionally ignored and should stay untracked:
 
 - `.agents/`
 - `.claude/`
+- `.local-certs/`
 
 Do not reintroduce local skill/tool directories into Git.
 
@@ -238,6 +239,7 @@ This preserves:
 - PostgreSQL data
 - Docker volumes
 - existing local state inside the running stack
+- local HTTPS cert state in `.local-certs/`
 
 ### Fully fresh destructive reset
 
@@ -251,9 +253,11 @@ This is intentionally destructive. It:
 2. removes containers
 3. removes Docker volumes including PostgreSQL data
 4. clears repo-local generated runtime artifacts
-5. rebuilds and starts the stack
-6. runs migrations
-7. runs seed data
+5. ensures the local HTTPS CA and cert exist for `xpressgo.home.arpa`
+6. rebuilds and starts the stack, including the HTTPS reverse proxy on `443`
+7. runs migrations
+8. runs seed data
+9. prints the current LAN IP and the phone remap reminder for `xpressgo.home.arpa`
 
 ### Stop only
 
@@ -266,6 +270,20 @@ make down
 ```bash
 make restart
 ```
+
+### Local HTTPS Mini App runtime
+
+For the customer-facing mini app, the intended local entrypoint is:
+
+- `https://xpressgo.home.arpa`
+
+Operational notes:
+
+- HTTPS terminates at the local reverse proxy on `443`
+- the mini app frontend still runs on `5173` behind the proxy
+- the Go API and WebSocket server still run on `8080` behind the proxy
+- `APP_URL` for the Telegram bot should resolve to the HTTPS hostname, not `http://localhost:5173`
+- when changing Wi-Fi networks, update the phone-side mapping of `xpressgo.home.arpa` to the laptop's current LAN IP
 
 ## Quality Workflow
 

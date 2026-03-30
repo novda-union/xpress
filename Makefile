@@ -1,20 +1,32 @@
-.PHONY: up down restart fresh logs wait-db migrate seed server web admin docs-check docs-refresh quality quality-fix quality-server quality-web quality-admin fmt fmt-check lint typecheck test
+.PHONY: up down restart fresh logs wait-db migrate seed server web admin docs-check docs-refresh quality quality-fix quality-server quality-web quality-admin fmt fmt-check lint typecheck test ensure-local-https print-lan-ip
 
 up:
+	$(MAKE) ensure-local-https
 	docker compose up -d
+	$(MAKE) print-lan-ip
 
 down:
 	docker compose down
 
 restart:
+	$(MAKE) ensure-local-https
 	docker compose down && docker compose up -d
+	$(MAKE) print-lan-ip
 
 fresh:
 	docker compose down -v --remove-orphans
 	rm -rf web/dist admin/.nuxt admin/.output server/tmp server/bin
+	$(MAKE) ensure-local-https
 	docker compose up -d --build
 	$(MAKE) migrate
 	$(MAKE) seed
+	$(MAKE) print-lan-ip
+
+ensure-local-https:
+	bash scripts/local_https/ensure_certs.sh
+
+print-lan-ip:
+	bash scripts/local_https/print_lan_ip.sh
 
 wait-db:
 	@printf '%s' 'Waiting for postgres'

@@ -35,3 +35,6 @@ Thumbs.db
 
 # Docker
 postgres-data/
+
+# Local HTTPS runtime
+.local-certs/

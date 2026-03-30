@@ -49,9 +49,11 @@ make fresh
    - `admin/.output`
    - `server/tmp`
    - `server/bin`
-5. rebuilds and starts the full Docker stack
-6. runs database migrations
-7. runs the seed command
+5. ensures the local HTTPS CA and cert exist for `xpressgo.home.arpa`
+6. rebuilds and starts the full Docker stack, including the HTTPS reverse proxy
+7. runs database migrations
+8. runs the seed command
+9. prints the current laptop LAN IP and the phone remap reminder for `xpressgo.home.arpa`
 
 After `make fresh`, the project is running again from a fully clean local state.
 
@@ -135,11 +137,28 @@ Use this when you suspect stale local state or want to reset everything:
 
 1. `make fresh`
 2. confirm the apps are reachable:
-   - web: `http://localhost:5173`
+   - mini app: `https://xpressgo.home.arpa`
    - admin: `http://localhost:3000`
    - server: `http://localhost:8080`
 3. continue development
 4. `make quality`
+
+### Local HTTPS Mini App Flow
+
+The customer-facing mini app now runs through a local HTTPS reverse proxy at `https://xpressgo.home.arpa`.
+
+- `make up`, `make restart`, and `make fresh` ensure the local CA and cert exist before starting the stack.
+- The phone and Telegram Mini App should use `https://xpressgo.home.arpa`, not the raw Vite port.
+- The proxy terminates HTTPS on `443` and forwards:
+  - mini app traffic to the Vite app on `5173`
+  - API and WebSocket traffic to the Go server on `8080`
+- `make up` and `make fresh` print the current laptop LAN IP and remind you to map `xpressgo.home.arpa` to that IP on the phone after changing Wi-Fi networks.
+
+One-time device setup:
+
+1. Trust the local CA at `.local-certs/rootCA.pem` on each test device.
+2. Map `xpressgo.home.arpa` to the laptop's current LAN IP on the laptop and phone.
+3. Open Telegram and launch the Mini App from the bot.
 
 ### App-Only Local Flow
 
@@ -198,3 +217,4 @@ This workflow is advisory only. It suggests likely stale docs; it does not edit 
 - `make restart` is also non-destructive.
 - `make fresh` is intentionally destructive and will wipe the local PostgreSQL data volume.
 - If you need a true clean local environment, use `make fresh`, not `make restart`.
+- `.local-certs/` is local-only runtime state and should remain untracked.

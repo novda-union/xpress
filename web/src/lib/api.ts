@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+const API_BASE = import.meta.env.VITE_API_BASE_URL?.trim() ?? ''
 
 function getToken(): string | null {
   return localStorage.getItem('xpressgo_token')
@@ -12,6 +12,14 @@ export function clearToken() {
   localStorage.removeItem('xpressgo_token')
 }
 
+function resolveApiUrl(path: string): string {
+  if (!API_BASE) {
+    return path
+  }
+
+  return new URL(path, API_BASE).toString()
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
   const headers = new Headers(options.headers)
@@ -23,7 +31,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     headers.set('Authorization', `Bearer ${token}`)
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(resolveApiUrl(path), {
     ...options,
     headers,
   })
@@ -42,6 +50,12 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 
 export function getWsUrl(): string {
   const token = getToken()
-  const base = API_BASE.replace(/^http/, 'ws')
-  return `${base}/ws?token=${token ?? ''}`
+  const url = API_BASE
+    ? new URL('/ws', API_BASE)
+    : new URL('/ws', window.location.origin)
+
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  url.searchParams.set('token', token ?? '')
+
+  return url.toString()
 }

@@ -19,7 +19,7 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_GATEWAY_TOKEN: ${TELEGRAM_GATEWAY_TOKEN:-}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
-      APP_URL: http://localhost:5173
+      APP_URL: https://xpressgo.home.arpa
     ports:
       - "8080:8080"
 
@@ -29,6 +29,17 @@ services:
       - "5173:5173"
     volumes:
       - ./web/src:/app/src
+
+  proxy:
+    image: nginx:1.27-alpine
+    depends_on:
+      - server
+      - web
+    ports:
+      - "443:443"
+    volumes:
+      - ./infra/local-https/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./.local-certs:/etc/nginx/certs:ro
 
   admin:
     build: ./admin

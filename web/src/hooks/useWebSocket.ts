@@ -11,7 +11,6 @@ interface WSMessage {
 }
 
 export function useWebSocket(onMessage: (msg: WSMessage) => void) {
-  const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<number | null>(null)
   const onMessageRef = useRef(onMessage)
   const [isConnected, setIsConnected] = useState(false)
@@ -25,7 +24,6 @@ export function useWebSocket(onMessage: (msg: WSMessage) => void) {
 
     const connect = () => {
       const ws = new WebSocket(getWsUrl())
-      wsRef.current = ws
 
       ws.onopen = () => {
         setIsConnected(true)
