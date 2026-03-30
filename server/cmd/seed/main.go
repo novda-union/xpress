@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -47,11 +45,6 @@ type seedStore struct {
 	users       []seedUser
 	menu        seedMenu
 	orderPlan   seedOrderPlan
-}
-
-type seededStoreRefs struct {
-	storeID   string
-	branchIDs map[string]string
 }
 
 type seedBranch struct {
@@ -99,35 +92,66 @@ type seedCatalogItem struct {
 }
 
 type seedOrderPlan struct {
-	totalOrders int
+	totalOrders     int
+	activePending   int
+	activeAccepted  int
+	activePreparing int
+	activeReady     int
+	branchWeights   []string
 }
 
-type seedGeneratedOrder struct {
+type seededStoreRefs struct {
+	storeID   string
+	branchIDs map[string]string
+	userIDs   []string
+	catalog   seededCatalog
+}
+
+type seededCatalog struct {
+	itemsByBranch map[string][]seededMenuItem
+}
+
+type seededMenuItem struct {
+	itemID     string
+	name       string
+	price      int64
+	modifiers  []seededModifier
+	branchCode string
+}
+
+type seededModifier struct {
+	modifierID string
+	name       string
+	price      int64
+}
+
+type seededGeneratedOrder struct {
 	userID          string
 	storeID         string
 	branchID        string
 	status          string
+	totalPrice      int64
 	paymentMethod   string
 	paymentStatus   string
 	etaMinutes      int
-	totalPrice      int64
 	rejectionReason string
 	createdAt       time.Time
-	items           []seedGeneratedOrderItem
+	updatedAt       time.Time
+	items           []seededGeneratedOrderItem
 }
 
-type seedGeneratedOrderItem struct {
-	itemID    *string
+type seededGeneratedOrderItem struct {
+	itemID    string
 	itemName  string
 	itemPrice int64
 	quantity  int
-	modifiers []seedGeneratedOrderModifier
+	modifiers []seededGeneratedOrderModifier
 }
 
-type seedGeneratedOrderModifier struct {
-	modifierID      *string
-	modifierName    string
-	priceAdjustment int64
+type seededGeneratedOrderModifier struct {
+	modifierID string
+	name       string
+	price      int64
 }
 
 func main() {
@@ -150,67 +174,146 @@ func main() {
 	if len(stores) == 0 {
 		log.Fatal("no seed stores configured")
 	}
+
+	if err := resetSeedUsers(ctx, conn); err != nil {
+		log.Fatalf("failed to reset seed users: %v", err)
+	}
+
 	for _, store := range stores {
-		storeID, err := ensureStore(ctx, conn, store)
+		refs, err := seedStoreWorld(ctx, conn, store, string(hash))
 		if err != nil {
-			log.Fatalf("failed to ensure store %s: %v", store.code, err)
-		}
-		log.Printf("Store ready: %s (%s)", store.name, storeID)
-
-		refs := seededStoreRefs{
-			storeID:   storeID,
-			branchIDs: map[string]string{},
+			log.Fatalf("failed to seed store world %s: %v", store.code, err)
 		}
 
-		for _, branch := range store.branches {
-			branchID, err := ensureBranch(ctx, conn, storeID, branch)
-			if err != nil {
-				log.Fatalf("failed to ensure branch %s/%s: %v", store.code, branch.code, err)
-			}
-			log.Printf("Branch ready: %s (%s)", branch.name, branchID)
-			refs.branchIDs[branch.code] = branchID
-		}
-
-		userIDs := make([]string, 0, len(store.users))
-		for _, user := range store.users {
-			userID, err := ensureUser(ctx, conn, user)
-			if err != nil {
-				log.Fatalf("failed to ensure user %d for store %s: %v", user.telegramID, store.code, err)
-			}
-			userIDs = append(userIDs, userID)
-		}
-
-		for _, staff := range store.staff {
-			var branchID *string
-			if staff.branchCode != "" {
-				id, ok := refs.branchIDs[staff.branchCode]
-				if !ok {
-					log.Fatalf("failed to resolve branch %s for staff %s/%s", staff.branchCode, store.code, staff.staffCode)
-				}
-				branchID = &id
-			}
-
-			if err := ensureStaff(ctx, conn, storeID, branchID, staff.staffCode, staff.name, string(hash), staff.role, staff.isActive); err != nil {
-				log.Fatalf("failed to ensure staff %s/%s: %v", store.code, staff.staffCode, err)
-			}
-		}
-
-		for _, branch := range store.branches {
-			branchID, ok := refs.branchIDs[branch.code]
-			if !ok {
-				log.Fatalf("failed to resolve branch %s for menu seeding in store %s", branch.code, store.code)
-			}
-			if err := seedBranchMenu(ctx, conn, storeID, branchID, store, branch); err != nil {
-				log.Fatalf("failed to seed menu for %s/%s: %v", store.code, branch.code, err)
-			}
-		}
-
-		if err := replaceSeedOrders(ctx, conn, store, refs, userIDs); err != nil {
+		if err := seedStoreOrders(ctx, conn, store, refs); err != nil {
 			log.Fatalf("failed to seed orders for %s: %v", store.code, err)
 		}
+
+		log.Printf(
+			"Store seeded: %s (%d branches, %d staff, %d users, %d orders)",
+			store.name,
+			len(store.branches),
+			len(store.staff),
+			len(refs.userIDs),
+			store.orderPlan.totalOrders,
+		)
 	}
 
 	log.Println("Seed completed successfully!")
+}
+
+func seedStoreWorld(ctx context.Context, conn *pgx.Conn, store seedStore, passwordHash string) (seededStoreRefs, error) {
+	storeID, err := ensureStore(ctx, conn, store)
+	if err != nil {
+		return seededStoreRefs{}, err
+	}
+
+	refs := seededStoreRefs{
+		storeID:   storeID,
+		branchIDs: map[string]string{},
+		userIDs:   []string{},
+		catalog: seededCatalog{
+			itemsByBranch: map[string][]seededMenuItem{},
+		},
+	}
+
+	for _, branch := range store.branches {
+		branchID, err := ensureBranch(ctx, conn, storeID, branch)
+		if err != nil {
+			return seededStoreRefs{}, err
+		}
+		refs.branchIDs[branch.code] = branchID
+	}
+
+	for _, staff := range store.staff {
+		var branchID *string
+		if staff.branchCode != "" {
+			id := refs.branchIDs[staff.branchCode]
+			branchID = &id
+		}
+		if err := ensureStaff(ctx, conn, storeID, branchID, staff.staffCode, staff.name, passwordHash, staff.role, staff.isActive); err != nil {
+			return seededStoreRefs{}, err
+		}
+	}
+
+	if err := deactivateStaleStaff(ctx, conn, storeID, store.staff); err != nil {
+		return seededStoreRefs{}, err
+	}
+
+	for _, user := range store.users {
+		userID, err := ensureUser(ctx, conn, user)
+		if err != nil {
+			return seededStoreRefs{}, err
+		}
+		refs.userIDs = append(refs.userIDs, userID)
+	}
+
+	for _, branch := range store.branches {
+		branchID := refs.branchIDs[branch.code]
+		items, err := seedBranchMenu(ctx, conn, storeID, branchID, store, branch)
+		if err != nil {
+			return seededStoreRefs{}, err
+		}
+		refs.catalog.itemsByBranch[branch.code] = items
+	}
+
+	return refs, nil
+}
+
+func seedStoreOrders(ctx context.Context, conn *pgx.Conn, store seedStore, refs seededStoreRefs) error {
+	if len(refs.userIDs) == 0 {
+		return nil
+	}
+
+	if err := deleteOrdersForSeedUsersByStore(ctx, conn, refs.storeID, refs.userIDs); err != nil {
+		return err
+	}
+
+	statuses := buildOrderStatuses(store.orderPlan)
+	now := time.Now().UTC()
+	branchWeights := store.orderPlan.branchWeights
+	if len(branchWeights) == 0 {
+		for _, branch := range store.branches {
+			branchWeights = append(branchWeights, branch.code)
+		}
+	}
+
+	for i, status := range statuses {
+		branchCode := branchWeights[i%len(branchWeights)]
+		branchID := refs.branchIDs[branchCode]
+		items := refs.catalog.itemsByBranch[branchCode]
+		if len(items) == 0 {
+			continue
+		}
+
+		orderItems, totalPrice := buildOrderItems(items, i)
+		createdAt := buildOrderTimestamp(now, i, len(statuses))
+		updatedAt := createdAt.Add(time.Duration(5+(i%90)) * time.Minute)
+		if status == "pending" {
+			updatedAt = createdAt
+		}
+
+		order := seededGeneratedOrder{
+			userID:          refs.userIDs[i%len(refs.userIDs)],
+			storeID:         refs.storeID,
+			branchID:        branchID,
+			status:          status,
+			totalPrice:      totalPrice,
+			paymentMethod:   "pay_at_pickup",
+			paymentStatus:   paymentStatusForStatus(status),
+			etaMinutes:      5 + (i%5)*5,
+			rejectionReason: rejectionReasonForStatus(status, i),
+			createdAt:       createdAt,
+			updatedAt:       updatedAt,
+			items:           orderItems,
+		}
+
+		if _, err := insertSeedOrder(ctx, conn, order); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func buildSeedStores() []seedStore {
@@ -222,6 +325,7 @@ func buildSeedStores() []seedStore {
 }
 
 func buildDemoBarStore() seedStore {
+	branchCodes := []string{"main", "downtown", "riverside", "chilonzor", "samarkand-darvoza", "airport-road"}
 	return seedStore{
 		code:        "demobar",
 		slug:        "demo-bar",
@@ -230,19 +334,6 @@ func buildDemoBarStore() seedStore {
 		description: "The best cocktails in Tashkent",
 		address:     "Amir Temur St 42, Tashkent",
 		phone:       "+998901234567",
-		logoURL:     "",
-		users: []seedUser{
-			{telegramID: 123456789, phone: "+998901111111", firstName: "Demo", lastName: "User", username: "demouser"},
-			{telegramID: 123456790, phone: "+998901111112", firstName: "Aisha", lastName: "Rahimova", username: "aisha_r"},
-			{telegramID: 123456791, phone: "+998901111113", firstName: "Aziz", lastName: "Karimov", username: "aziz_k"},
-			{telegramID: 123456792, phone: "+998901111114", firstName: "Dilnoza", lastName: "Saidova", username: "dilnoza_s"},
-			{telegramID: 123456793, phone: "+998901111115", firstName: "Rustam", lastName: "Yusupov", username: "rustam_y"},
-			{telegramID: 123456794, phone: "+998901111116", firstName: "Madina", lastName: "Nazarova", username: "madina_n"},
-			{telegramID: 123456795, phone: "+998901111117", firstName: "Jasur", lastName: "Ortiqov", username: "jasur_o"},
-			{telegramID: 123456796, phone: "+998901111118", firstName: "Nilufar", lastName: "Tursunova", username: "nilufar_t"},
-			{telegramID: 123456797, phone: "+998901111119", firstName: "Sardor", lastName: "Abdullaev", username: "sardor_a"},
-			{telegramID: 123456798, phone: "+998901111120", firstName: "Malika", lastName: "Karimova", username: "malika_k"},
-		},
 		branches: []seedBranch{
 			{code: "main", name: "Demo Bar - Main", address: "Amir Temur St 42, Tashkent", lat: 41.2995, lng: 69.2401, isActive: true},
 			{code: "downtown", name: "Demo Bar - Downtown", address: "Afrosiyob St 8, Tashkent", lat: 41.3057, lng: 69.2801, isActive: true},
@@ -251,41 +342,22 @@ func buildDemoBarStore() seedStore {
 			{code: "samarkand-darvoza", name: "Demo Bar - Samarkand Darvoza", address: "Qatortol St 2, Tashkent", lat: 41.3164, lng: 69.2128, isActive: true},
 			{code: "airport-road", name: "Demo Bar - Airport Road", address: "Kushbegi St 118, Tashkent", lat: 41.2578, lng: 69.2816, isActive: true},
 		},
-		menu: buildDemoBarMenu(),
-		staff: []seedStaff{
-			{staffCode: "admin", name: "Bar Director", role: "director", isActive: true},
-			{branchCode: "main", staffCode: "manager-main", name: "Main Branch Manager", role: "manager", isActive: true},
-			{branchCode: "downtown", staffCode: "manager-downtown", name: "Downtown Branch Manager", role: "manager", isActive: true},
-			{branchCode: "riverside", staffCode: "manager-riverside", name: "Riverside Branch Manager", role: "manager", isActive: true},
-			{branchCode: "chilonzor", staffCode: "manager-chilonzor", name: "Chilonzor Branch Manager", role: "manager", isActive: true},
-			{branchCode: "samarkand-darvoza", staffCode: "manager-samarkand", name: "Samarkand Darvoza Manager", role: "manager", isActive: true},
-			{branchCode: "airport-road", staffCode: "manager-airport", name: "Airport Road Manager", role: "manager", isActive: true},
-			{branchCode: "main", staffCode: "barista-main-1", name: "Main Barista 1", role: "barista", isActive: true},
-			{branchCode: "main", staffCode: "barista-main-2", name: "Main Barista 2", role: "barista", isActive: true},
-			{branchCode: "main", staffCode: "barista-main-3", name: "Main Barista 3", role: "barista", isActive: true},
-			{branchCode: "main", staffCode: "barista-main-4", name: "Main Barista 4", role: "barista", isActive: true},
-			{branchCode: "downtown", staffCode: "barista-downtown-1", name: "Downtown Barista 1", role: "barista", isActive: true},
-			{branchCode: "downtown", staffCode: "barista-downtown-2", name: "Downtown Barista 2", role: "barista", isActive: true},
-			{branchCode: "downtown", staffCode: "barista-downtown-3", name: "Downtown Barista 3", role: "barista", isActive: true},
-			{branchCode: "downtown", staffCode: "barista-downtown-4", name: "Downtown Barista 4", role: "barista", isActive: true},
-			{branchCode: "riverside", staffCode: "barista-riverside-1", name: "Riverside Barista 1", role: "barista", isActive: true},
-			{branchCode: "riverside", staffCode: "barista-riverside-2", name: "Riverside Barista 2", role: "barista", isActive: true},
-			{branchCode: "riverside", staffCode: "barista-riverside-3", name: "Riverside Barista 3", role: "barista", isActive: true},
-			{branchCode: "chilonzor", staffCode: "barista-chilonzor-1", name: "Chilonzor Barista 1", role: "barista", isActive: true},
-			{branchCode: "chilonzor", staffCode: "barista-chilonzor-2", name: "Chilonzor Barista 2", role: "barista", isActive: true},
-			{branchCode: "chilonzor", staffCode: "barista-chilonzor-3", name: "Chilonzor Barista 3", role: "barista", isActive: true},
-			{branchCode: "samarkand-darvoza", staffCode: "barista-samarkand-1", name: "Samarkand Barista 1", role: "barista", isActive: true},
-			{branchCode: "samarkand-darvoza", staffCode: "barista-samarkand-2", name: "Samarkand Barista 2", role: "barista", isActive: true},
-			{branchCode: "samarkand-darvoza", staffCode: "barista-samarkand-3", name: "Samarkand Barista 3", role: "barista", isActive: true},
-			{branchCode: "airport-road", staffCode: "barista-airport-1", name: "Airport Barista 1", role: "barista", isActive: true},
-			{branchCode: "airport-road", staffCode: "barista-airport-2", name: "Airport Barista 2", role: "barista", isActive: true},
-			{branchCode: "airport-road", staffCode: "barista-airport-3", name: "Airport Barista 3", role: "barista", isActive: true},
+		staff: buildStoreStaff("Bar Director", branchCodes, 4, map[string]int{}),
+		users: buildSeedUsers("demobaruser", "Demo", "Bar", 35, 2234500000),
+		menu:  buildDemoBarMenu(),
+		orderPlan: seedOrderPlan{
+			totalOrders:     120,
+			activePending:   4,
+			activeAccepted:  5,
+			activePreparing: 6,
+			activeReady:     5,
+			branchWeights:   []string{"main", "main", "downtown", "main", "riverside", "chilonzor", "samarkand-darvoza", "main", "airport-road"},
 		},
-		orderPlan: seedOrderPlan{totalOrders: 120},
 	}
 }
 
 func buildUrbanCoffeeStore() seedStore {
+	branchCodes := []string{"main", "yunusabad", "parkent"}
 	return seedStore{
 		code:        "urbancoffee",
 		slug:        "urban-coffee",
@@ -294,41 +366,27 @@ func buildUrbanCoffeeStore() seedStore {
 		description: "Specialty coffee and breakfast",
 		address:     "Buyuk Ipak Yuli 1, Tashkent",
 		phone:       "+998901234568",
-		logoURL:     "",
-		users: []seedUser{
-			{telegramID: 123456899, phone: "+998902111111", firstName: "Lola", lastName: "Saidova", username: "lola_s"},
-			{telegramID: 123456900, phone: "+998902111112", firstName: "Bekzod", lastName: "Nurmuhamedov", username: "bekzod_n"},
-			{telegramID: 123456901, phone: "+998902111113", firstName: "Umida", lastName: "Rashidova", username: "umida_r"},
-			{telegramID: 123456902, phone: "+998902111114", firstName: "Mirjalol", lastName: "Hamidov", username: "mirjalol_h"},
-			{telegramID: 123456903, phone: "+998902111115", firstName: "Shahlo", lastName: "Ibragimova", username: "shahlo_i"},
-			{telegramID: 123456904, phone: "+998902111116", firstName: "Iskandar", lastName: "Raxmatov", username: "iskandar_r"},
-		},
 		branches: []seedBranch{
 			{code: "main", name: "Urban Coffee - Main", address: "Buyuk Ipak Yuli 1, Tashkent", lat: 41.3142, lng: 69.2879, isActive: true},
 			{code: "yunusabad", name: "Urban Coffee - Yunusabad", address: "Yunusabad 17, Tashkent", lat: 41.3647, lng: 69.2965, isActive: true},
 			{code: "parkent", name: "Urban Coffee - Parkent", address: "Parkent St 12, Tashkent", lat: 41.2898, lng: 69.3212, isActive: true},
 		},
-		menu: buildUrbanCoffeeMenu(),
-		staff: []seedStaff{
-			{staffCode: "admin", name: "Coffee Director", role: "director", isActive: true},
-			{branchCode: "main", staffCode: "manager-main", name: "Main Branch Manager", role: "manager", isActive: true},
-			{branchCode: "yunusabad", staffCode: "manager-yunusabad", name: "Yunusabad Branch Manager", role: "manager", isActive: true},
-			{branchCode: "parkent", staffCode: "manager-parkent", name: "Parkent Branch Manager", role: "manager", isActive: true},
-			{branchCode: "main", staffCode: "barista-main-1", name: "Main Barista 1", role: "barista", isActive: true},
-			{branchCode: "main", staffCode: "barista-main-2", name: "Main Barista 2", role: "barista", isActive: true},
-			{branchCode: "main", staffCode: "barista-main-3", name: "Main Barista 3", role: "barista", isActive: true},
-			{branchCode: "yunusabad", staffCode: "barista-yunusabad-1", name: "Yunusabad Barista 1", role: "barista", isActive: true},
-			{branchCode: "yunusabad", staffCode: "barista-yunusabad-2", name: "Yunusabad Barista 2", role: "barista", isActive: true},
-			{branchCode: "yunusabad", staffCode: "barista-yunusabad-3", name: "Yunusabad Barista 3", role: "barista", isActive: true},
-			{branchCode: "parkent", staffCode: "barista-parkent-1", name: "Parkent Barista 1", role: "barista", isActive: true},
-			{branchCode: "parkent", staffCode: "barista-parkent-2", name: "Parkent Barista 2", role: "barista", isActive: true},
-			{branchCode: "parkent", staffCode: "barista-parkent-3", name: "Parkent Barista 3", role: "barista", isActive: false},
+		staff: buildStoreStaff("Coffee Director", branchCodes, 3, map[string]int{"parkent": 3}),
+		users: buildSeedUsers("urbancoffeeuser", "Urban", "Coffee", 12, 2234600000),
+		menu:  buildUrbanCoffeeMenu(),
+		orderPlan: seedOrderPlan{
+			totalOrders:     45,
+			activePending:   1,
+			activeAccepted:  1,
+			activePreparing: 2,
+			activeReady:     1,
+			branchWeights:   []string{"main", "main", "yunusabad", "main", "parkent"},
 		},
-		orderPlan: seedOrderPlan{totalOrders: 45},
 	}
 }
 
 func buildStreetBurgerStore() seedStore {
+	branchCodes := []string{"main", "almazar", "sergeli"}
 	return seedStore{
 		code:        "streetburger",
 		slug:        "street-burger",
@@ -337,271 +395,132 @@ func buildStreetBurgerStore() seedStore {
 		description: "Burgers, chicken, and quick comfort food",
 		address:     "Bodomzor 3, Tashkent",
 		phone:       "+998901234569",
-		logoURL:     "",
-		users: []seedUser{
-			{telegramID: 123456999, phone: "+998903111111", firstName: "Akmal", lastName: "Ganiev", username: "akmal_g"},
-			{telegramID: 123457000, phone: "+998903111112", firstName: "Sevara", lastName: "Mirzaeva", username: "sevara_m"},
-			{telegramID: 123457001, phone: "+998903111113", firstName: "Timur", lastName: "Kholmatov", username: "timur_k"},
-			{telegramID: 123457002, phone: "+998903111114", firstName: "Sabina", lastName: "Khamidova", username: "sabina_k"},
-			{telegramID: 123457003, phone: "+998903111115", firstName: "Shavkat", lastName: "Akhmedov", username: "shavkat_a"},
-			{telegramID: 123457004, phone: "+998903111116", firstName: "Gulnora", lastName: "Mamatova", username: "gulnora_m"},
-		},
 		branches: []seedBranch{
 			{code: "main", name: "Street Burger - Main", address: "Bodomzor 3, Tashkent", lat: 41.3471, lng: 69.2872, isActive: true},
 			{code: "almazar", name: "Street Burger - Almazar", address: "Almazar 8, Tashkent", lat: 41.3502, lng: 69.2198, isActive: true},
 			{code: "sergeli", name: "Street Burger - Sergeli", address: "Sergeli 9, Tashkent", lat: 41.2259, lng: 69.2144, isActive: true},
 		},
-		menu: buildStreetBurgerMenu(),
-		staff: []seedStaff{
-			{staffCode: "admin", name: "Burger Director", role: "director", isActive: true},
-			{branchCode: "main", staffCode: "manager-main", name: "Main Branch Manager", role: "manager", isActive: true},
-			{branchCode: "almazar", staffCode: "manager-almazar", name: "Almazar Branch Manager", role: "manager", isActive: true},
-			{branchCode: "sergeli", staffCode: "manager-sergeli", name: "Sergeli Branch Manager", role: "manager", isActive: true},
-			{branchCode: "main", staffCode: "barista-main-1", name: "Main Barista 1", role: "barista", isActive: true},
-			{branchCode: "main", staffCode: "barista-main-2", name: "Main Barista 2", role: "barista", isActive: true},
-			{branchCode: "main", staffCode: "barista-main-3", name: "Main Barista 3", role: "barista", isActive: true},
-			{branchCode: "almazar", staffCode: "barista-almazar-1", name: "Almazar Barista 1", role: "barista", isActive: true},
-			{branchCode: "almazar", staffCode: "barista-almazar-2", name: "Almazar Barista 2", role: "barista", isActive: true},
-			{branchCode: "almazar", staffCode: "barista-almazar-3", name: "Almazar Barista 3", role: "barista", isActive: true},
-			{branchCode: "sergeli", staffCode: "barista-sergeli-1", name: "Sergeli Barista 1", role: "barista", isActive: true},
-			{branchCode: "sergeli", staffCode: "barista-sergeli-2", name: "Sergeli Barista 2", role: "barista", isActive: true},
-			{branchCode: "sergeli", staffCode: "barista-sergeli-3", name: "Sergeli Barista 3", role: "barista", isActive: true},
+		staff: buildStoreStaff("Burger Director", branchCodes, 3, map[string]int{"sergeli": 2}),
+		users: buildSeedUsers("streetburgeruser", "Street", "Burger", 12, 2234700000),
+		menu:  buildStreetBurgerMenu(),
+		orderPlan: seedOrderPlan{
+			totalOrders:     45,
+			activePending:   1,
+			activeAccepted:  1,
+			activePreparing: 2,
+			activeReady:     1,
+			branchWeights:   []string{"main", "main", "almazar", "main", "sergeli"},
 		},
-		orderPlan: seedOrderPlan{totalOrders: 45},
 	}
+}
+
+func buildStoreStaff(directorName string, branchCodes []string, baristasPerBranch int, inactiveBaristas map[string]int) []seedStaff {
+	staff := []seedStaff{
+		{staffCode: "admin", name: directorName, role: "director", isActive: true},
+	}
+
+	for _, branchCode := range branchCodes {
+		staff = append(staff, seedStaff{
+			branchCode: branchCode,
+			staffCode:  "manager-" + branchCode,
+			name:       titleCase(branchCode) + " Manager",
+			role:       "manager",
+			isActive:   true,
+		})
+
+		for i := 1; i <= baristasPerBranch; i++ {
+			isActive := true
+			if inactiveBaristas[branchCode] == i {
+				isActive = false
+			}
+			staff = append(staff, seedStaff{
+				branchCode: branchCode,
+				staffCode:  "barista-" + branchCode + "-" + itoa(i),
+				name:       titleCase(branchCode) + " Barista " + itoa(i),
+				role:       "barista",
+				isActive:   isActive,
+			})
+		}
+	}
+
+	return staff
+}
+
+func buildSeedUsers(prefix, firstPrefix, lastPrefix string, count int, startTelegramID int64) []seedUser {
+	users := make([]seedUser, 0, count)
+	for i := 1; i <= count; i++ {
+		suffix := itoa(i)
+		users = append(users, seedUser{
+			telegramID: startTelegramID + int64(i),
+			phone:      "+99890" + leftPadNumber(i, 7),
+			firstName:  firstPrefix,
+			lastName:   lastPrefix + " User " + suffix,
+			username:   prefix + suffix,
+		})
+	}
+	return users
 }
 
 func buildDemoBarMenu() seedMenu {
 	return seedMenu{
 		categories: []seedCategory{
-			{
-				name: "Cocktails",
-				items: []seedCatalogItem{
-					{
-						name:        "Mojito",
-						description: "Fresh lime, mint, rum, soda",
-						price:       45000,
-						modGroups: []seedModifierGroup{
-							{
-								name:          "Size",
-								selectionType: "single",
-								required:      true,
-								mods: []seedModifier{
-									{name: "Regular", price: 0},
-									{name: "Large", price: 15000},
-								},
-							},
-							{
-								name:          "Extras",
-								selectionType: "multiple",
-								required:      false,
-								mods: []seedModifier{
-									{name: "Extra mint", price: 3000},
-									{name: "Extra lime", price: 3000},
-									{name: "Double shot", price: 10000},
-								},
-							},
-						},
-						unavailableAt: map[string]bool{
-							"airport-road": true,
-						},
-					},
-					{
-						name:        "Margarita",
-						description: "Tequila, lime juice, triple sec",
-						price:       50000,
-						modGroups: []seedModifierGroup{
-							{
-								name:          "Size",
-								selectionType: "single",
-								required:      true,
-								mods: []seedModifier{
-									{name: "Regular", price: 0},
-									{name: "Large", price: 15000},
-								},
-							},
-							{
-								name:          "Salt rim",
-								selectionType: "single",
-								required:      false,
-								mods: []seedModifier{
-									{name: "With salt", price: 0},
-									{name: "No salt", price: 0},
-								},
-							},
-						},
-					},
-					{
-						name:        "Long Island",
-						description: "Five spirits, cola, lemon",
-						price:       55000,
-						modGroups: []seedModifierGroup{
-							{
-								name:          "Size",
-								selectionType: "single",
-								required:      true,
-								mods: []seedModifier{
-									{name: "Regular", price: 0},
-									{name: "Large", price: 20000},
-								},
-							},
-						},
-					},
-					{
-						name:        "Aperol Spritz",
-						description: "Aperol, prosecco, soda",
-						price:       48000,
-					},
-					{
-						name:        "Negroni",
-						description: "Gin, vermouth, campari",
-						price:       52000,
-					},
-				},
-			},
-			{
-				name: "Beer",
-				items: []seedCatalogItem{
-					{
-						name:        "Sarbast Lager",
-						description: "Local Uzbek lager, crisp and light",
-						price:       25000,
-						modGroups: []seedModifierGroup{
-							{
-								name:          "Size",
-								selectionType: "single",
-								required:      true,
-								mods: []seedModifier{
-									{name: "0.33L", price: 0},
-									{name: "0.5L", price: 10000},
-								},
-							},
-						},
-					},
-					{
-						name:        "Pulsar IPA",
-						description: "Hoppy craft IPA",
-						price:       35000,
-						modGroups: []seedModifierGroup{
-							{
-								name:          "Size",
-								selectionType: "single",
-								required:      true,
-								mods: []seedModifier{
-									{name: "0.33L", price: 0},
-									{name: "0.5L", price: 12000},
-								},
-							},
-						},
-					},
-					{
-						name:        "Corona",
-						description: "Mexican lager with lime",
-						price:       40000,
-					},
-					{
-						name:        "Hoegaarden",
-						description: "Wheat beer with citrus notes",
-						price:       42000,
-					},
-				},
-			},
-			{
-				name: "Wine",
-				items: []seedCatalogItem{
-					{name: "House Red", description: "Full-bodied red blend", price: 45000},
-					{name: "House White", description: "Crisp white wine", price: 45000},
-					{name: "Sparkling Brut", description: "Dry sparkling wine", price: 58000},
-					{name: "Rosé", description: "Light and fresh rosé", price: 50000},
-				},
-			},
-			{
-				name: "Coffee",
-				items: []seedCatalogItem{
-					{name: "Espresso", description: "Single shot espresso", price: 12000},
-					{name: "Americano", description: "Espresso with hot water", price: 14000},
-					{name: "Cappuccino", description: "Espresso, steamed milk, foam", price: 18000},
-					{name: "Latte", description: "Espresso, milk, light foam", price: 20000},
-					{name: "Flat White", description: "Velvety milk coffee", price: 19000},
-				},
-			},
-			{
-				name: "Snacks",
-				items: []seedCatalogItem{
-					{
-						name:        "Nachos",
-						description: "Tortilla chips with cheese sauce and jalapenos",
-						price:       35000,
-						modGroups: []seedModifierGroup{
-							{
-								name:          "Toppings",
-								selectionType: "multiple",
-								required:      false,
-								mods: []seedModifier{
-									{name: "Extra cheese", price: 5000},
-									{name: "Guacamole", price: 8000},
-									{name: "Sour cream", price: 5000},
-								},
-							},
-						},
-					},
-					{
-						name:        "Chicken Wings",
-						description: "Crispy wings with sauce",
-						price:       42000,
-						modGroups: []seedModifierGroup{
-							{
-								name:          "Sauce",
-								selectionType: "single",
-								required:      true,
-								mods: []seedModifier{
-									{name: "BBQ", price: 0},
-									{name: "Buffalo", price: 0},
-									{name: "Honey Mustard", price: 0},
-								},
-							},
-							{
-								name:          "Portion",
-								selectionType: "single",
-								required:      true,
-								mods: []seedModifier{
-									{name: "6 pieces", price: 0},
-									{name: "12 pieces", price: 25000},
-								},
-							},
-						},
-					},
-					{
-						name:        "French Fries",
-						description: "Crispy golden fries",
-						price:       20000,
-						modGroups: []seedModifierGroup{
-							{
-								name:          "Dip",
-								selectionType: "single",
-								required:      false,
-								mods: []seedModifier{
-									{name: "Ketchup", price: 0},
-									{name: "Mayo", price: 0},
-									{name: "Cheese sauce", price: 3000},
-								},
-							},
-						},
-					},
-					{name: "Olives", description: "Marinated green and black olives", price: 18000},
-					{name: "Truffle Fries", description: "Fries with truffle salt", price: 24000},
-				},
-			},
-			{
-				name: "Sharing Plates",
-				items: []seedCatalogItem{
-					{name: "Cheese Board", description: "Mixed cheeses, crackers, fruit", price: 68000},
-					{name: "Mezze Platter", description: "Hummus, pita, dips, vegetables", price: 62000},
-					{name: "Bruschetta", description: "Tomato, basil, olive oil on toasted bread", price: 28000},
-					{name: "Mini Sliders", description: "Three small beef sliders", price: 54000},
-					{name: "Fried Calamari", description: "Lightly fried calamari rings", price: 58000},
-				},
-			},
+			{name: "Cocktails", items: []seedCatalogItem{
+				{name: "Mojito", description: "Fresh lime, mint, rum, soda", price: 45000, modGroups: []seedModifierGroup{
+					singleSelectGroup("Size", true, seedModifier{name: "Regular", price: 0}, seedModifier{name: "Large", price: 15000}),
+					multiSelectGroup("Extras", seedModifier{name: "Extra mint", price: 3000}, seedModifier{name: "Extra lime", price: 3000}, seedModifier{name: "Double shot", price: 10000}),
+				}, unavailableAt: map[string]bool{"airport-road": true}},
+				{name: "Margarita", description: "Tequila, lime juice, triple sec", price: 50000, modGroups: []seedModifierGroup{
+					singleSelectGroup("Size", true, seedModifier{name: "Regular", price: 0}, seedModifier{name: "Large", price: 15000}),
+					singleSelectGroup("Salt Rim", false, seedModifier{name: "With salt", price: 0}, seedModifier{name: "No salt", price: 0}),
+				}},
+				{name: "Long Island", description: "Five spirits, cola, lemon", price: 55000, modGroups: []seedModifierGroup{
+					singleSelectGroup("Size", true, seedModifier{name: "Regular", price: 0}, seedModifier{name: "Large", price: 20000}),
+				}},
+				{name: "Aperol Spritz", description: "Aperol, prosecco, soda", price: 48000},
+				{name: "Negroni", description: "Gin, vermouth, campari", price: 52000},
+			}},
+			{name: "Beer", items: []seedCatalogItem{
+				{name: "Sarbast Lager", description: "Local Uzbek lager, crisp and light", price: 25000, modGroups: []seedModifierGroup{
+					singleSelectGroup("Size", true, seedModifier{name: "0.33L", price: 0}, seedModifier{name: "0.5L", price: 10000}),
+				}},
+				{name: "Pulsar IPA", description: "Hoppy craft IPA", price: 35000, modGroups: []seedModifierGroup{
+					singleSelectGroup("Size", true, seedModifier{name: "0.33L", price: 0}, seedModifier{name: "0.5L", price: 12000}),
+				}},
+				{name: "Corona", description: "Mexican lager with lime", price: 40000},
+				{name: "Wheat Ale", description: "Cloudy wheat beer", price: 32000},
+				{name: "Pilsner", description: "Dry and refreshing lager", price: 28000},
+			}},
+			{name: "Wine", items: []seedCatalogItem{
+				{name: "House White", description: "Crisp glass of white wine", price: 38000},
+				{name: "House Red", description: "Smooth glass of red wine", price: 39000},
+				{name: "Rose Spritz", description: "Rose with tonic and citrus", price: 41000},
+				{name: "Sparkling Brut", description: "Light sparkling wine", price: 45000},
+			}},
+			{name: "Coffee", items: []seedCatalogItem{
+				{name: "Espresso", description: "Strong single shot", price: 16000},
+				{name: "Americano", description: "Espresso with hot water", price: 18000},
+				{name: "Cappuccino", description: "Espresso with milk foam", price: 22000},
+				{name: "Iced Latte", description: "Cold latte over ice", price: 26000},
+			}},
+			{name: "Snacks", items: []seedCatalogItem{
+				{name: "Nachos", description: "Tortilla chips with cheese sauce and jalapenos", price: 35000, modGroups: []seedModifierGroup{
+					multiSelectGroup("Toppings", seedModifier{name: "Extra cheese", price: 5000}, seedModifier{name: "Guacamole", price: 8000}, seedModifier{name: "Sour cream", price: 5000}),
+				}},
+				{name: "Chicken Wings", description: "Crispy wings with sauce", price: 42000, modGroups: []seedModifierGroup{
+					singleSelectGroup("Sauce", true, seedModifier{name: "BBQ", price: 0}, seedModifier{name: "Buffalo", price: 0}, seedModifier{name: "Honey Mustard", price: 0}),
+					singleSelectGroup("Portion", true, seedModifier{name: "6 pieces", price: 0}, seedModifier{name: "12 pieces", price: 25000}),
+				}},
+				{name: "French Fries", description: "Crispy golden fries", price: 20000, modGroups: []seedModifierGroup{
+					singleSelectGroup("Dip", false, seedModifier{name: "Ketchup", price: 0}, seedModifier{name: "Mayo", price: 0}, seedModifier{name: "Cheese sauce", price: 3000}),
+				}},
+				{name: "Onion Rings", description: "Crunchy onion rings", price: 26000},
+			}},
+			{name: "Sharing Plates", items: []seedCatalogItem{
+				{name: "Mixed Platter", description: "Wings, fries, rings, and dips", price: 72000},
+				{name: "Cheese Board", description: "Selection of cheeses and nuts", price: 68000, unavailableAt: map[string]bool{"chilonzor": true}},
+				{name: "Loaded Fries", description: "Fries with cheese, jalapenos, and sauce", price: 44000},
+				{name: "Mini Sliders", description: "Three beef sliders", price: 52000},
+			}},
 		},
 	}
 }
@@ -609,54 +528,38 @@ func buildDemoBarMenu() seedMenu {
 func buildUrbanCoffeeMenu() seedMenu {
 	return seedMenu{
 		categories: []seedCategory{
-			{
-				name: "Espresso Bar",
-				items: []seedCatalogItem{
-					{name: "Espresso", description: "Strong single shot", price: 12000},
-					{name: "Double Espresso", description: "Double shot", price: 16000},
-					{name: "Americano", description: "Espresso and hot water", price: 14000},
-					{name: "Flat White", description: "Velvety milk coffee", price: 18000},
-					{name: "Cappuccino", description: "Espresso with milk foam", price: 19000},
-				},
-			},
-			{
-				name: "Signature Drinks",
-				items: []seedCatalogItem{
-					{name: "Iced Latte", description: "Cold latte over ice", price: 22000},
-					{name: "Caramel Macchiato", description: "Espresso with caramel syrup", price: 24000},
-					{name: "Vanilla Raf", description: "Creamy vanilla coffee", price: 26000},
-					{name: "Mocha", description: "Coffee with chocolate", price: 23000},
-					{name: "Cold Brew", description: "Slow-steeped iced coffee", price: 25000},
-				},
-			},
-			{
-				name: "Tea",
-				items: []seedCatalogItem{
-					{name: "Black Tea", description: "Classic black tea", price: 10000},
-					{name: "Green Tea", description: "Light green tea", price: 10000},
-					{name: "Jasmine Tea", description: "Floral jasmine tea", price: 12000},
-					{name: "Berry Tea", description: "Berry blend tea", price: 14000},
-				},
-			},
-			{
-				name: "Pastries",
-				items: []seedCatalogItem{
-					{name: "Croissant", description: "Buttery croissant", price: 14000},
-					{name: "Chocolate Muffin", description: "Rich chocolate muffin", price: 16000},
-					{name: "Cinnamon Roll", description: "Warm cinnamon roll", price: 18000},
-					{name: "Banana Bread", description: "Moist banana loaf slice", price: 17000},
-					{name: "Cheesecake Slice", description: "Classic cheesecake", price: 24000},
-				},
-			},
-			{
-				name: "Breakfast",
-				items: []seedCatalogItem{
-					{name: "Avocado Toast", description: "Avocado on sourdough", price: 28000},
-					{name: "Egg Sandwich", description: "Egg and cheese sandwich", price: 26000},
-					{name: "Oatmeal Bowl", description: "Oats with fruit and honey", price: 22000},
-					{name: "Granola Yogurt", description: "Yogurt with granola", price: 24000},
-				},
-			},
+			{name: "Espresso Bar", items: []seedCatalogItem{
+				{name: "Espresso", description: "Strong single shot", price: 12000},
+				{name: "Double Espresso", description: "Double shot", price: 16000},
+				{name: "Americano", description: "Espresso and hot water", price: 14000},
+				{name: "Flat White", description: "Velvety milk coffee", price: 18000},
+				{name: "Cappuccino", description: "Espresso with milk foam", price: 19000},
+			}},
+			{name: "Signature Drinks", items: []seedCatalogItem{
+				{name: "Iced Latte", description: "Cold latte over ice", price: 22000},
+				{name: "Caramel Macchiato", description: "Espresso with caramel syrup", price: 24000},
+				{name: "Vanilla Raf", description: "Creamy vanilla coffee", price: 26000},
+				{name: "Mocha", description: "Coffee with chocolate", price: 23000},
+				{name: "Cold Brew", description: "Slow-steeped iced coffee", price: 25000, unavailableAt: map[string]bool{"parkent": true}},
+			}},
+			{name: "Tea", items: []seedCatalogItem{
+				{name: "English Breakfast", description: "Classic black tea", price: 15000},
+				{name: "Jasmine Green Tea", description: "Light floral green tea", price: 16000},
+				{name: "Chamomile", description: "Calming herbal tea", price: 16000},
+				{name: "Lemon Ginger Tea", description: "Citrus and ginger infusion", price: 18000},
+			}},
+			{name: "Pastries", items: []seedCatalogItem{
+				{name: "Butter Croissant", description: "Flaky butter croissant", price: 16000},
+				{name: "Chocolate Croissant", description: "Pastry with dark chocolate", price: 19000},
+				{name: "Cinnamon Roll", description: "Soft cinnamon pastry", price: 22000},
+				{name: "Blueberry Muffin", description: "Muffin with fresh berries", price: 20000},
+			}},
+			{name: "Breakfast", items: []seedCatalogItem{
+				{name: "Avocado Toast", description: "Sourdough with avocado and herbs", price: 36000},
+				{name: "Egg Sandwich", description: "Scrambled eggs and cheese", price: 32000},
+				{name: "Granola Bowl", description: "Yogurt with granola and fruit", price: 28000},
+				{name: "Pancake Stack", description: "Pancakes with syrup and berries", price: 34000},
+			}},
 		},
 	}
 }
@@ -664,118 +567,58 @@ func buildUrbanCoffeeMenu() seedMenu {
 func buildStreetBurgerMenu() seedMenu {
 	return seedMenu{
 		categories: []seedCategory{
-			{
-				name: "Burgers",
-				items: []seedCatalogItem{
-					{
-						name:        "Classic Burger",
-						description: "Beef patty, lettuce, tomato, pickles",
-						price:       45000,
-						modGroups: []seedModifierGroup{
-							{
-								name:          "Doneness",
-								selectionType: "single",
-								required:      false,
-								mods: []seedModifier{
-									{name: "Medium", price: 0},
-									{name: "Well Done", price: 0},
-								},
-							},
-						},
-					},
-					{name: "Cheeseburger", description: "Burger with cheddar", price: 48000},
-					{name: "Double Burger", description: "Two patties and cheese", price: 55000},
-					{name: "BBQ Burger", description: "BBQ sauce and onion rings", price: 50000},
-					{name: "Mushroom Burger", description: "Mushrooms and creamy sauce", price: 52000},
-				},
-			},
-			{
-				name: "Chicken",
-				items: []seedCatalogItem{
-					{name: "Chicken Burger", description: "Crispy chicken burger", price: 42000},
-					{name: "Spicy Chicken Burger", description: "Spicy chicken and slaw", price: 44000},
-					{name: "Chicken Tenders", description: "Breaded chicken strips", price: 38000},
-					{name: "Chicken Wings", description: "Sauced wings", price: 40000},
-				},
-			},
-			{
-				name: "Sides",
-				items: []seedCatalogItem{
-					{name: "Fries", description: "Crispy fries", price: 16000},
-					{name: "Onion Rings", description: "Golden onion rings", price: 18000},
-					{name: "Coleslaw", description: "Creamy cabbage slaw", price: 12000},
-					{name: "Nuggets", description: "Chicken nuggets", price: 22000},
-				},
-			},
-			{
-				name: "Combos",
-				items: []seedCatalogItem{
-					{name: "Burger Combo", description: "Burger, fries, drink", price: 62000},
-					{name: "Chicken Combo", description: "Chicken meal with fries", price: 60000},
-					{name: "Family Box", description: "Mixed burgers and sides", price: 145000, unavailableAt: map[string]bool{"sergeli": true}},
-				},
-			},
-			{
-				name: "Drinks",
-				items: []seedCatalogItem{
-					{name: "Cola", description: "Classic cola", price: 12000},
-					{name: "Lemonade", description: "Fresh lemonade", price: 14000},
-					{name: "Iced Tea", description: "Cold iced tea", price: 13000},
-					{name: "Mineral Water", description: "Still mineral water", price: 8000},
-				},
-			},
+			{name: "Burgers", items: []seedCatalogItem{
+				{name: "Classic Burger", description: "Beef patty, lettuce, tomato, pickles", price: 45000, modGroups: []seedModifierGroup{
+					singleSelectGroup("Doneness", false, seedModifier{name: "Medium", price: 0}, seedModifier{name: "Well Done", price: 0}),
+				}},
+				{name: "Cheeseburger", description: "Burger with cheddar", price: 48000},
+				{name: "Double Burger", description: "Two patties and cheese", price: 55000},
+				{name: "BBQ Burger", description: "BBQ sauce and onion rings", price: 50000},
+				{name: "Mushroom Burger", description: "Mushrooms and creamy sauce", price: 52000},
+			}},
+			{name: "Chicken", items: []seedCatalogItem{
+				{name: "Crispy Chicken Burger", description: "Fried chicken with slaw", price: 43000},
+				{name: "Spicy Chicken Wrap", description: "Wrap with spicy chicken strips", price: 39000},
+				{name: "Chicken Tenders", description: "Tender strips with dip", price: 35000},
+				{name: "Buffalo Chicken Burger", description: "Chicken burger with buffalo sauce", price: 47000},
+			}},
+			{name: "Sides", items: []seedCatalogItem{
+				{name: "Fries", description: "Classic salted fries", price: 18000},
+				{name: "Loaded Fries", description: "Fries with cheese and sauce", price: 28000},
+				{name: "Onion Rings", description: "Crispy onion rings", price: 22000},
+				{name: "Coleslaw", description: "Fresh slaw side", price: 12000},
+			}},
+			{name: "Combos", items: []seedCatalogItem{
+				{name: "Burger Combo", description: "Burger, fries, and drink", price: 62000},
+				{name: "Chicken Combo", description: "Chicken burger, fries, and drink", price: 60000},
+				{name: "Double Combo", description: "Double burger set with fries", price: 72000, unavailableAt: map[string]bool{"sergeli": true}},
+			}},
+			{name: "Drinks", items: []seedCatalogItem{
+				{name: "Cola", description: "Chilled cola", price: 12000},
+				{name: "Lemonade", description: "Sparkling lemonade", price: 14000},
+				{name: "Iced Tea", description: "Sweet iced tea", price: 13000},
+				{name: "Milkshake", description: "Vanilla milkshake", price: 22000},
+			}},
 		},
 	}
 }
 
-func seedBranchMenu(ctx context.Context, conn *pgx.Conn, storeID, branchID string, store seedStore, branch seedBranch) error {
-	for categoryIndex, category := range store.menu.categories {
-		categoryID, err := ensureCategory(ctx, conn, storeID, branchID, category.name, categoryIndex)
-		if err != nil {
-			return err
-		}
-
-		for itemIndex, catalogItem := range category.items {
-			itemID, err := ensureItem(ctx, conn, storeID, branchID, categoryID, seedItem{
-				category:    category.name,
-				name:        catalogItem.name,
-				description: catalogItem.description,
-				price:       catalogItem.price,
-				modGroups:   catalogItem.modGroups,
-			}, itemIndex)
-			if err != nil {
-				return err
-			}
-
-			if err := setItemAvailability(ctx, conn, itemID, !catalogItem.unavailableAt[branch.code]); err != nil {
-				return err
-			}
-
-			for groupIndex, group := range catalogItem.modGroups {
-				groupID, err := ensureModifierGroup(ctx, conn, storeID, branchID, itemID, group, groupIndex)
-				if err != nil {
-					return err
-				}
-
-				for modIndex, mod := range group.mods {
-					if err := ensureModifier(ctx, conn, storeID, branchID, groupID, mod, modIndex); err != nil {
-						return err
-					}
-				}
-			}
-		}
+func singleSelectGroup(name string, required bool, mods ...seedModifier) seedModifierGroup {
+	return seedModifierGroup{
+		name:          name,
+		selectionType: "single",
+		required:      required,
+		mods:          mods,
 	}
-
-	return nil
 }
 
-func setItemAvailability(ctx context.Context, conn *pgx.Conn, itemID string, isAvailable bool) error {
-	_, err := conn.Exec(ctx, `
-		UPDATE items
-		SET is_available = $2
-		WHERE id = $1
-	`, itemID, isAvailable)
-	return err
+func multiSelectGroup(name string, mods ...seedModifier) seedModifierGroup {
+	return seedModifierGroup{
+		name:          name,
+		selectionType: "multiple",
+		required:      false,
+		mods:          mods,
+	}
 }
 
 func ensureStore(ctx context.Context, conn *pgx.Conn, store seedStore) (string, error) {
@@ -817,7 +660,7 @@ func ensureBranch(ctx context.Context, conn *pgx.Conn, storeID string, branch se
 		INSERT INTO branches (
 			store_id, name, address, lat, lng, banner_image_url, telegram_group_chat_id, is_active
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (store_id, name) DO UPDATE SET
 			address = EXCLUDED.address,
 			lat = EXCLUDED.lat,
@@ -846,7 +689,10 @@ func ensureUser(ctx context.Context, conn *pgx.Conn, user seedUser) (string, err
 			username = EXCLUDED.username
 		RETURNING id
 	`, user.telegramID, user.phone, user.firstName, user.lastName, user.username).Scan(&id)
-	return id, err
+	if err != nil {
+		return "", err
+	}
+	return id, nil
 }
 
 func ensureStaff(ctx context.Context, conn *pgx.Conn, storeID string, branchID *string, staffCode, name, passwordHash, role string, isActive bool) error {
@@ -971,7 +817,7 @@ func ensureModifierGroup(ctx context.Context, conn *pgx.Conn, storeID, branchID,
 	return id, nil
 }
 
-func ensureModifier(ctx context.Context, conn *pgx.Conn, storeID, branchID, groupID string, mod seedModifier, sortOrder int) error {
+func ensureModifier(ctx context.Context, conn *pgx.Conn, storeID, branchID, groupID string, mod seedModifier, sortOrder int) (string, error) {
 	var id string
 	err := conn.QueryRow(ctx, `
 		SELECT id
@@ -984,194 +830,322 @@ func ensureModifier(ctx context.Context, conn *pgx.Conn, storeID, branchID, grou
 			SET price_adjustment = $2, is_available = true, sort_order = $3
 			WHERE id = $1
 		`, id, mod.price, sortOrder)
-		return err
+		return id, err
 	}
 	if err != pgx.ErrNoRows {
+		return "", err
+	}
+
+	err = conn.QueryRow(ctx, `
+		INSERT INTO modifiers (modifier_group_id, store_id, branch_id, name, price_adjustment, is_available, sort_order)
+		VALUES ($1, $2, $3, $4, $5, true, $6)
+		RETURNING id
+	`, groupID, storeID, branchID, mod.name, mod.price, sortOrder).Scan(&id)
+	return id, err
+}
+
+func seedBranchMenu(ctx context.Context, conn *pgx.Conn, storeID, branchID string, store seedStore, branch seedBranch) ([]seededMenuItem, error) {
+	items := []seededMenuItem{}
+
+	for categoryIndex, category := range store.menu.categories {
+		categoryID, err := ensureCategory(ctx, conn, storeID, branchID, category.name, categoryIndex)
+		if err != nil {
+			return nil, err
+		}
+
+		for itemIndex, catalogItem := range category.items {
+			itemID, err := ensureItem(ctx, conn, storeID, branchID, categoryID, seedItem{
+				category:    category.name,
+				name:        catalogItem.name,
+				description: catalogItem.description,
+				price:       catalogItem.price,
+				modGroups:   catalogItem.modGroups,
+			}, itemIndex)
+			if err != nil {
+				return nil, err
+			}
+
+			if err := setItemAvailability(ctx, conn, itemID, !catalogItem.unavailableAt[branch.code]); err != nil {
+				return nil, err
+			}
+
+			menuItem := seededMenuItem{
+				itemID:     itemID,
+				name:       catalogItem.name,
+				price:      catalogItem.price,
+				modifiers:  []seededModifier{},
+				branchCode: branch.code,
+			}
+
+			for groupIndex, group := range catalogItem.modGroups {
+				groupID, err := ensureModifierGroup(ctx, conn, storeID, branchID, itemID, group, groupIndex)
+				if err != nil {
+					return nil, err
+				}
+
+				for modIndex, mod := range group.mods {
+					modifierID, err := ensureModifier(ctx, conn, storeID, branchID, groupID, mod, modIndex)
+					if err != nil {
+						return nil, err
+					}
+					menuItem.modifiers = append(menuItem.modifiers, seededModifier{
+						modifierID: modifierID,
+						name:       mod.name,
+						price:      mod.price,
+					})
+				}
+			}
+
+			items = append(items, menuItem)
+		}
+	}
+
+	return items, nil
+}
+
+func setItemAvailability(ctx context.Context, conn *pgx.Conn, itemID string, isAvailable bool) error {
+	_, err := conn.Exec(ctx, `
+		UPDATE items
+		SET is_available = $2
+		WHERE id = $1
+	`, itemID, isAvailable)
+	return err
+}
+
+func deleteOrdersForSeedUsersByStore(ctx context.Context, conn *pgx.Conn, storeID string, userIDs []string) error {
+	_, err := conn.Exec(ctx, `
+		DELETE FROM orders
+		WHERE store_id = $1
+		  AND user_id = ANY($2)
+	`, storeID, userIDs)
+	return err
+}
+
+func resetSeedUsers(ctx context.Context, conn *pgx.Conn) error {
+	_, err := conn.Exec(ctx, `
+		DELETE FROM orders
+		WHERE user_id IN (
+			SELECT id FROM users
+			WHERE username = 'demouser'
+			   OR username LIKE 'demobaruser%'
+			   OR username LIKE 'urbancoffeeuser%'
+			   OR username LIKE 'streetburgeruser%'
+		)
+	`)
+	if err != nil {
 		return err
 	}
 
 	_, err = conn.Exec(ctx, `
-		INSERT INTO modifiers (modifier_group_id, store_id, branch_id, name, price_adjustment, is_available, sort_order)
-		VALUES ($1, $2, $3, $4, $5, true, $6)
-	`, groupID, storeID, branchID, mod.name, mod.price, sortOrder)
+		DELETE FROM users
+		WHERE username = 'demouser'
+		   OR username LIKE 'demobaruser%'
+		   OR username LIKE 'urbancoffeeuser%'
+		   OR username LIKE 'streetburgeruser%'
+	`)
 	return err
 }
 
-func replaceSeedOrders(ctx context.Context, conn *pgx.Conn, store seedStore, refs seededStoreRefs, userIDs []string) error {
-	if len(userIDs) == 0 {
-		return fmt.Errorf("no seeded users configured for store %s", store.code)
+func deactivateStaleStaff(ctx context.Context, conn *pgx.Conn, storeID string, staff []seedStaff) error {
+	validCodes := make([]string, 0, len(staff))
+	for _, entry := range staff {
+		validCodes = append(validCodes, entry.staffCode)
 	}
 
 	_, err := conn.Exec(ctx, `
-		DELETE FROM orders
+		UPDATE store_staff
+		SET is_active = false
 		WHERE store_id = $1
-		  AND user_id = ANY($2::uuid[])
-	`, refs.storeID, userIDs)
-	if err != nil {
-		return err
-	}
-
-	specs := generateSeedOrders(store, refs, userIDs)
-	for _, spec := range specs {
-		if err := insertSeedOrder(ctx, conn, spec); err != nil {
-			return err
-		}
-	}
-	return nil
+		  AND NOT (staff_code = ANY($2))
+	`, storeID, validCodes)
+	return err
 }
 
-func generateSeedOrders(store seedStore, refs seededStoreRefs, userIDs []string) []seedGeneratedOrder {
-	branchCodes := make([]string, 0, len(refs.branchIDs))
-	for code := range refs.branchIDs {
-		branchCodes = append(branchCodes, code)
-	}
-	sort.Strings(branchCodes)
-
-	statuses := buildStatusPlan(store.code, store.orderPlan.totalOrders)
-
-	orders := make([]seedGeneratedOrder, 0, store.orderPlan.totalOrders)
-	baseTime := time.Date(2026, 3, 30, 12, 0, 0, 0, time.UTC)
-	for i := 0; i < store.orderPlan.totalOrders; i++ {
-		status := "picked_up"
-		if i < len(statuses) {
-			status = statuses[i]
-		}
-		branchCode := branchCodes[i%len(branchCodes)]
-		branchID := refs.branchIDs[branchCode]
-		userID := userIDs[i%len(userIDs)]
-		total := int64(42000 + (i%7)*5000)
-		orders = append(orders, seedGeneratedOrder{
-			userID:          userID,
-			storeID:         refs.storeID,
-			branchID:        branchID,
-			status:          status,
-			paymentMethod:   "pay_at_pickup",
-			paymentStatus:   paymentStatusFor(status),
-			etaMinutes:      10 + (i % 8),
-			totalPrice:      total,
-			rejectionReason: rejectionReasonFor(status),
-			createdAt:       baseTime.Add(-time.Duration(i) * 3 * time.Hour),
-			items: []seedGeneratedOrderItem{
-				{
-					itemName:  fmt.Sprintf("%s Special %d", store.name, i+1),
-					itemPrice: total,
-					quantity:  1 + (i % 3),
-				},
-			},
-		})
-	}
-	return orders
-}
-
-func buildStatusPlan(storeCode string, total int) []string {
-	type statusBucket struct {
-		status string
-		count  int
-	}
-
-	var buckets []statusBucket
-	switch storeCode {
-	case "demobar":
-		buckets = []statusBucket{
-			{status: "pending", count: 4},
-			{status: "accepted", count: 5},
-			{status: "preparing", count: 6},
-			{status: "ready", count: 5},
-			{status: "cancelled", count: 4},
-			{status: "rejected", count: 2},
-		}
-	default:
-		buckets = []statusBucket{
-			{status: "pending", count: 2},
-			{status: "accepted", count: 2},
-			{status: "preparing", count: 2},
-			{status: "ready", count: 2},
-			{status: "cancelled", count: 2},
-			{status: "rejected", count: 1},
-		}
-	}
-
-	statuses := make([]string, 0, total)
-	for _, bucket := range buckets {
-		statuses = append(statuses, repeatStatus(bucket.status, bucket.count)...)
-	}
-	if len(statuses) < total {
-		statuses = append(statuses, repeatStatus("picked_up", total-len(statuses))...)
-	}
-	if len(statuses) > total {
-		statuses = statuses[:total]
-	}
-	return statuses
-}
-
-func insertSeedOrder(ctx context.Context, conn *pgx.Conn, order seedGeneratedOrder) error {
+func insertSeedOrder(ctx context.Context, conn *pgx.Conn, order seededGeneratedOrder) (string, error) {
 	var orderID string
 	err := conn.QueryRow(ctx, `
 		INSERT INTO orders (
-			user_id, store_id, branch_id, status, total_price, payment_method, payment_status,
-			eta_minutes, rejection_reason, created_at, updated_at
+			user_id, store_id, branch_id, status, total_price, payment_method,
+			payment_status, eta_minutes, rejection_reason, created_at, updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id
-	`, order.userID, order.storeID, order.branchID, order.status, order.totalPrice, order.paymentMethod, order.paymentStatus, order.etaMinutes, order.rejectionReason, order.createdAt).Scan(&orderID)
+	`, order.userID, order.storeID, order.branchID, order.status, order.totalPrice, order.paymentMethod, order.paymentStatus, order.etaMinutes, order.rejectionReason, order.createdAt, order.updatedAt).Scan(&orderID)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	for _, item := range order.items {
-		itemID, err := insertSeedOrderItem(ctx, conn, orderID, item)
+		orderItemID, err := insertSeedOrderItem(ctx, conn, orderID, item)
 		if err != nil {
-			return err
+			return "", err
 		}
+
 		for _, mod := range item.modifiers {
-			if err := insertSeedOrderModifier(ctx, conn, itemID, mod); err != nil {
-				return err
+			if err := insertSeedOrderModifier(ctx, conn, orderItemID, mod); err != nil {
+				return "", err
 			}
 		}
 	}
-	return nil
+
+	return orderID, nil
 }
 
-func insertSeedOrderItem(ctx context.Context, conn *pgx.Conn, orderID string, item seedGeneratedOrderItem) (string, error) {
-	var id string
+func insertSeedOrderItem(ctx context.Context, conn *pgx.Conn, orderID string, item seededGeneratedOrderItem) (string, error) {
+	var orderItemID string
 	err := conn.QueryRow(ctx, `
 		INSERT INTO order_items (order_id, item_id, item_name, item_price, quantity)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
-	`, orderID, item.itemID, item.itemName, item.itemPrice, item.quantity).Scan(&id)
-	return id, err
+	`, orderID, item.itemID, item.itemName, item.itemPrice, item.quantity).Scan(&orderItemID)
+	return orderItemID, err
 }
 
-func insertSeedOrderModifier(ctx context.Context, conn *pgx.Conn, orderItemID string, mod seedGeneratedOrderModifier) error {
+func insertSeedOrderModifier(ctx context.Context, conn *pgx.Conn, orderItemID string, mod seededGeneratedOrderModifier) error {
 	_, err := conn.Exec(ctx, `
 		INSERT INTO order_item_modifiers (order_item_id, modifier_id, modifier_name, price_adjustment)
 		VALUES ($1, $2, $3, $4)
-	`, orderItemID, mod.modifierID, mod.modifierName, mod.priceAdjustment)
+	`, orderItemID, mod.modifierID, mod.name, mod.price)
 	return err
 }
 
-func repeatStatus(status string, count int) []string {
-	result := make([]string, 0, count)
-	for i := 0; i < count; i++ {
-		result = append(result, status)
+func buildOrderStatuses(plan seedOrderPlan) []string {
+	statuses := make([]string, 0, plan.totalOrders)
+
+	for i := 0; i < plan.activePending; i++ {
+		statuses = append(statuses, "pending")
 	}
-	return result
+	for i := 0; i < plan.activeAccepted; i++ {
+		statuses = append(statuses, "accepted")
+	}
+	for i := 0; i < plan.activePreparing; i++ {
+		statuses = append(statuses, "preparing")
+	}
+	for i := 0; i < plan.activeReady; i++ {
+		statuses = append(statuses, "ready")
+	}
+
+	for len(statuses) < plan.totalOrders {
+		switch len(statuses) % 10 {
+		case 0, 1, 2, 3, 4, 5, 6:
+			statuses = append(statuses, "picked_up")
+		case 7, 8:
+			statuses = append(statuses, "cancelled")
+		default:
+			statuses = append(statuses, "rejected")
+		}
+	}
+
+	return statuses
 }
 
-func paymentStatusFor(status string) string {
+func buildOrderTimestamp(now time.Time, index, total int) time.Time {
+	activeWindow := total / 3
+	if index < activeWindow {
+		return now.Add(-time.Duration(1+(index*3)%42) * time.Hour)
+	}
+
+	daysAgo := 2 + (index % 12)
+	minutes := (index * 37) % (24 * 60)
+	return now.Add(-time.Duration(daysAgo)*24*time.Hour - time.Duration(minutes)*time.Minute)
+}
+
+func buildOrderItems(items []seededMenuItem, orderIndex int) ([]seededGeneratedOrderItem, int64) {
+	count := 1 + (orderIndex % 3)
+	if orderIndex%10 == 0 {
+		count = 4
+	}
+
+	result := make([]seededGeneratedOrderItem, 0, count)
+	var total int64
+	for i := 0; i < count; i++ {
+		menuItem := items[(orderIndex+i)%len(items)]
+		quantity := 1
+		if (orderIndex+i)%5 == 0 {
+			quantity = 2
+		}
+
+		generated := seededGeneratedOrderItem{
+			itemID:    menuItem.itemID,
+			itemName:  menuItem.name,
+			itemPrice: menuItem.price,
+			quantity:  quantity,
+			modifiers: []seededGeneratedOrderModifier{},
+		}
+
+		lineTotal := menuItem.price * int64(quantity)
+		if len(menuItem.modifiers) > 0 && (orderIndex+i)%2 == 0 {
+			mod := menuItem.modifiers[(orderIndex+i)%len(menuItem.modifiers)]
+			generated.modifiers = append(generated.modifiers, seededGeneratedOrderModifier(mod))
+			lineTotal += mod.price * int64(quantity)
+		}
+
+		total += lineTotal
+		result = append(result, generated)
+	}
+
+	return result, total
+}
+
+func paymentStatusForStatus(status string) string {
 	switch status {
 	case "picked_up":
 		return "paid"
-	case "cancelled", "rejected":
+	case "rejected":
 		return "failed"
+	case "cancelled":
+		return "cancelled"
 	default:
 		return "pending"
 	}
 }
 
-func rejectionReasonFor(status string) string {
-	if status == "rejected" {
-		return "Kitchen capacity reached for the seeded demo window"
+func rejectionReasonForStatus(status string, index int) string {
+	if status != "rejected" {
+		return ""
 	}
-	return ""
+	if index%2 == 0 {
+		return "Kitchen capacity reached"
+	}
+	return "Item temporarily unavailable"
+}
+
+func titleCase(code string) string {
+	runes := []rune(code)
+	if len(runes) == 0 {
+		return ""
+	}
+	for i := range runes {
+		if i == 0 || runes[i-1] == '-' {
+			if runes[i] >= 'a' && runes[i] <= 'z' {
+				runes[i] = runes[i] - 32
+			}
+		} else if runes[i] == '-' {
+			runes[i] = ' '
+		}
+	}
+	return string(runes)
+}
+
+func itoa(v int) string {
+	if v == 0 {
+		return "0"
+	}
+
+	buf := [20]byte{}
+	i := len(buf)
+	for v > 0 {
+		i--
+		buf[i] = byte('0' + (v % 10))
+		v /= 10
+	}
+	return string(buf[i:])
+}
+
+func leftPadNumber(v, width int) string {
+	s := itoa(v)
+	for len(s) < width {
+		s = "0" + s
+	}
+	return s
 }
