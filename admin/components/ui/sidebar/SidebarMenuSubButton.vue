@@ -11,6 +11,7 @@ const props = withDefaults(defineProps<PrimitiveProps & {
 }>(), {
   as: "a",
   size: "md",
+  class: undefined,
 })
 </script>
 

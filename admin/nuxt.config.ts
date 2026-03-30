@@ -1,6 +1,8 @@
+import tailwindcss from "@tailwindcss/vite";
+
 export default defineNuxtConfig({
   devtools: { enabled: true },
-  modules: ['@nuxtjs/tailwindcss'],
+  components: [{ path: '~/components', extensions: ['vue'] }],
   css: ['~/assets/css/main.css'],
   devServer: {
     host: '0.0.0.0',
@@ -11,4 +13,7 @@ export default defineNuxtConfig({
       apiBase: 'https://srvr.novdaunion.uz',
     },
   },
+  vite: {
+    plugins: [tailwindcss()]
+  }
 })

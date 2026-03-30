@@ -37,10 +37,10 @@
 <script setup lang="ts">
 import { Plus, Users } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import StaffForm from 'components/staff/StaffForm.vue'
-import StaffGroupList from 'components/staff/StaffGroupList.vue'
-import EmptyState from 'components/ui/EmptyState.vue'
-import type { BranchSummary, Staff, StaffGroup } from 'types/auth'
+import StaffForm from '@/components/staff/StaffForm.vue'
+import StaffGroupList from '@/components/staff/StaffGroupList.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import type { BranchSummary, Staff, StaffGroup } from '@/types/auth'
 
 const { api } = useApi()
 const auth = useAuth()

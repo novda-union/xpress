@@ -16,6 +16,7 @@ const props = withDefaults(defineProps<SidebarMenuButtonProps & {
   as: "button",
   variant: "default",
   size: "default",
+  tooltip: undefined,
 })
 
 const { isMobile, state } = useSidebar()

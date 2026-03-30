@@ -35,9 +35,9 @@
 <script setup lang="ts">
 import { Plus, Store } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import BranchForm from 'components/branches/BranchForm.vue'
-import BranchTable from 'components/branches/BranchTable.vue'
-import EmptyState from 'components/ui/EmptyState.vue'
+import BranchForm from '@/components/branches/BranchForm.vue'
+import BranchTable from '@/components/branches/BranchTable.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import type { BranchSummary } from 'types/auth'
 
 const { api } = useApi()
