@@ -8,7 +8,7 @@ interface ViewToggleProps {
 export function ViewToggle({ value, onChange }: ViewToggleProps) {
   return (
     <div
-      className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2"
+      className="fixed bottom-5 left-1/2 z-20 -translate-x-1/2"
       style={{
         background: 'color-mix(in srgb, var(--xp-card-bg) 72%, transparent)',
         backdropFilter: 'blur(28px) saturate(200%)',

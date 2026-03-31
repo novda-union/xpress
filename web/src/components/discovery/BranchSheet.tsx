@@ -16,7 +16,7 @@ export function BranchSheet({ branch, onClose }: BranchSheetProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-40">
+    <div className="fixed inset-0 z-30">
       <button
         type="button"
         aria-label="Close sheet"
