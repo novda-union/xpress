@@ -39,6 +39,18 @@ func (b *Bot) SendOrderStatusToUser(telegramID int64, order *model.Order, storeN
 	}
 }
 
+func (b *Bot) SendOrderStatusToChat(groupChatID int64, branchName string, order *model.Order) {
+	if b.api == nil {
+		log.Printf("telegram: bot disabled, would notify group %d about order #%d status: %s", groupChatID, order.OrderNumber, order.Status)
+		return
+	}
+
+	msg := tgbotapi.NewMessage(groupChatID, formatBranchOrderStatusMessage(branchName, order))
+	if _, err := b.api.Send(msg); err != nil {
+		log.Printf("telegram: failed to send order status to group %d: %v", groupChatID, err)
+	}
+}
+
 func (b *Bot) SendNewOrderToChat(groupChatID int64, locationName string, order *model.Order) {
 	if b.api == nil {
 		log.Printf("telegram: bot disabled, would notify group %d about new order #%d", groupChatID, order.OrderNumber)
@@ -73,6 +85,18 @@ func (b *Bot) SendNewOrderToChat(groupChatID int64, locationName string, order *
 	}
 }
 
+func (b *Bot) SendBranchDailySummary(groupChatID int64, summary *model.BranchDailyOrderSummary) {
+	if b.api == nil {
+		log.Printf("telegram: bot disabled, would notify group %d about daily summary for branch %s", groupChatID, summary.BranchID)
+		return
+	}
+
+	msg := tgbotapi.NewMessage(groupChatID, formatBranchDailySummaryMessage(summary))
+	if _, err := b.api.Send(msg); err != nil {
+		log.Printf("telegram: failed to send daily summary to group %d: %v", groupChatID, err)
+	}
+}
+
 func (b *Bot) SendOrderCancelledToChat(groupChatID int64, locationName string, orderNumber int) {
 	if b.api == nil {
 		log.Printf("telegram: bot disabled, would notify group %d about cancelled order #%d", groupChatID, orderNumber)
@@ -94,6 +118,69 @@ func (b *Bot) SendNewOrderToStore(groupChatID int64, order *model.Order) {
 // SendOrderCancelledToStore keeps the older store-scoped helper available.
 func (b *Bot) SendOrderCancelledToStore(groupChatID int64, orderNumber int) {
 	b.SendOrderCancelledToChat(groupChatID, "your store", orderNumber)
+}
+
+func formatBranchOrderStatusMessage(branchName string, order *model.Order) string {
+	var lines []string
+	lines = append(lines, fmt.Sprintf("Order #%d at %s", order.OrderNumber, branchName))
+	lines = append(lines, fmt.Sprintf("Status: %s", formatOrderStatusLabel(order.Status)))
+
+	if order.RejectionReason != "" {
+		lines = append(lines, fmt.Sprintf("Reason: %s", order.RejectionReason))
+	}
+
+	if len(order.Items) > 0 {
+		lines = append(lines, "Items:")
+		for _, item := range order.Items {
+			entry := fmt.Sprintf("%dx %s", item.Quantity, item.ItemName)
+			if len(item.Modifiers) > 0 {
+				var mods []string
+				for _, mod := range item.Modifiers {
+					mods = append(mods, mod.ModifierName)
+				}
+				entry += fmt.Sprintf(" (%s)", strings.Join(mods, ", "))
+			}
+			lines = append(lines, entry)
+		}
+	}
+
+	lines = append(lines, fmt.Sprintf("Total: %s UZS", formatPrice(order.TotalPrice)))
+	return strings.Join(lines, "\n")
+}
+
+func formatBranchDailySummaryMessage(summary *model.BranchDailyOrderSummary) string {
+	lines := []string{
+		fmt.Sprintf("Daily summary for %s", summary.BranchName),
+		fmt.Sprintf("Date: %s", summary.LocalDate.Format("2006-01-02")),
+		fmt.Sprintf("Total orders: %d", summary.TotalOrders),
+		fmt.Sprintf("Pending: %d", summary.PendingOrders),
+		fmt.Sprintf("Accepted: %d", summary.AcceptedOrders),
+		fmt.Sprintf("Preparing: %d", summary.PreparingOrders),
+		fmt.Sprintf("Ready: %d", summary.ReadyOrders),
+		fmt.Sprintf("Picked up: %d", summary.PickedUpOrders),
+		fmt.Sprintf("Rejected: %d", summary.RejectedOrders),
+		fmt.Sprintf("Cancelled: %d", summary.CancelledOrders),
+		fmt.Sprintf("Created total: %s UZS", formatPrice(summary.TotalCreatedOrderSum)),
+		fmt.Sprintf("Picked up total: %s UZS", formatPrice(summary.TotalPickedUpOrderSum)),
+	}
+	return strings.Join(lines, "\n")
+}
+
+func formatOrderStatusLabel(status string) string {
+	switch status {
+	case "accepted":
+		return "accepted"
+	case "preparing":
+		return "preparing"
+	case "ready":
+		return "ready for pickup"
+	case "picked_up":
+		return "picked up"
+	case "rejected":
+		return "rejected"
+	default:
+		return status
+	}
 }
 
 func formatPrice(price int64) string {

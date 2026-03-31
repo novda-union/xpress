@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
@@ -13,14 +14,21 @@ import (
 )
 
 type OrderHandler struct {
-	orderService *service.OrderService
-	branchRepo   *repository.BranchRepo
-	telegramBot  *telegram.Bot
-	hub          *ws.Hub
+	orderService         *service.OrderService
+	orderNotificationSvc *service.OrderNotificationService
+	branchRepo           *repository.BranchRepo
+	telegramBot          *telegram.Bot
+	hub                  *ws.Hub
 }
 
-func NewOrderHandler(orderService *service.OrderService, branchRepo *repository.BranchRepo, telegramBot *telegram.Bot, hub *ws.Hub) *OrderHandler {
-	return &OrderHandler{orderService: orderService, branchRepo: branchRepo, telegramBot: telegramBot, hub: hub}
+func NewOrderHandler(orderService *service.OrderService, orderNotificationSvc *service.OrderNotificationService, branchRepo *repository.BranchRepo, telegramBot *telegram.Bot, hub *ws.Hub) *OrderHandler {
+	return &OrderHandler{
+		orderService:         orderService,
+		orderNotificationSvc: orderNotificationSvc,
+		branchRepo:           branchRepo,
+		telegramBot:          telegramBot,
+		hub:                  hub,
+	}
 }
 
 type createOrderRequest struct {
@@ -219,6 +227,12 @@ func (h *OrderHandler) AdminUpdateStatus(c echo.Context) error {
 			OrderID: order.ID,
 			Status:  req.Status,
 		})
+	}
+
+	if h.orderNotificationSvc != nil {
+		if err := h.orderNotificationSvc.NotifyBranchOrderStatus(c.Request().Context(), order); err != nil {
+			log.Printf("notifications: failed to send branch status update for order %s: %v", order.ID, err)
+		}
 	}
 
 	return c.JSON(http.StatusOK, order)

@@ -287,6 +287,37 @@ func (r *BranchRepo) ListAdmin(ctx context.Context, storeID string, branchID *st
 	return branches, nil
 }
 
+func (r *BranchRepo) ListActiveWithTelegramChatIDs(ctx context.Context) ([]model.Branch, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT id, store_id, name, address, lat, lng, banner_image_url, telegram_group_chat_id, is_active, created_at, updated_at
+		FROM branches
+		WHERE is_active = true AND telegram_group_chat_id IS NOT NULL
+		ORDER BY created_at ASC, name ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var branches []model.Branch
+	for rows.Next() {
+		var branch model.Branch
+		if err := rows.Scan(
+			&branch.ID, &branch.StoreID, &branch.Name, &branch.Address, &branch.Lat, &branch.Lng,
+			&branch.BannerImageURL, &branch.TelegramGroupChatID, &branch.IsActive, &branch.CreatedAt, &branch.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		branches = append(branches, branch)
+	}
+
+	if branches == nil {
+		branches = []model.Branch{}
+	}
+
+	return branches, nil
+}
+
 func (r *BranchRepo) GetByIDForStore(ctx context.Context, id, storeID string) (*model.Branch, error) {
 	branch := &model.Branch{}
 	err := r.db.QueryRow(ctx, `

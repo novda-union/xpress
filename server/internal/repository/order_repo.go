@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/xpressgo/server/internal/model"
@@ -268,6 +269,52 @@ func (r *OrderRepo) ListByUser(ctx context.Context, userID string) ([]model.Orde
 		orders = []model.Order{}
 	}
 	return orders, nil
+}
+
+func (r *OrderRepo) GetBranchDailySummary(ctx context.Context, branchID string, summaryDate time.Time, startUTC, endUTC time.Time) (*model.BranchDailyOrderSummary, error) {
+	summary := &model.BranchDailyOrderSummary{
+		BranchID:  branchID,
+		LocalDate: summaryDate,
+	}
+
+	err := r.db.QueryRow(ctx, `
+		SELECT
+			b.name,
+			COUNT(o.id)::bigint AS total_orders,
+			COUNT(o.id) FILTER (WHERE o.status = 'pending')::bigint AS pending_orders,
+			COUNT(o.id) FILTER (WHERE o.status = 'accepted')::bigint AS accepted_orders,
+			COUNT(o.id) FILTER (WHERE o.status = 'preparing')::bigint AS preparing_orders,
+			COUNT(o.id) FILTER (WHERE o.status = 'ready')::bigint AS ready_orders,
+			COUNT(o.id) FILTER (WHERE o.status = 'picked_up')::bigint AS picked_up_orders,
+			COUNT(o.id) FILTER (WHERE o.status = 'rejected')::bigint AS rejected_orders,
+			COUNT(o.id) FILTER (WHERE o.status = 'cancelled')::bigint AS cancelled_orders,
+			COALESCE(SUM(o.total_price), 0)::bigint AS total_created_order_sum,
+			COALESCE(SUM(o.total_price) FILTER (WHERE o.status = 'picked_up'), 0)::bigint AS total_picked_up_order_sum
+		FROM branches b
+		LEFT JOIN orders o
+			ON o.branch_id = b.id
+			AND o.created_at >= $2
+			AND o.created_at < $3
+		WHERE b.id = $1
+		GROUP BY b.name
+	`, branchID, startUTC, endUTC).Scan(
+		&summary.BranchName,
+		&summary.TotalOrders,
+		&summary.PendingOrders,
+		&summary.AcceptedOrders,
+		&summary.PreparingOrders,
+		&summary.ReadyOrders,
+		&summary.PickedUpOrders,
+		&summary.RejectedOrders,
+		&summary.CancelledOrders,
+		&summary.TotalCreatedOrderSum,
+		&summary.TotalPickedUpOrderSum,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return summary, nil
 }
 
 func (r *OrderRepo) UpdateStatus(ctx context.Context, id, status, rejectionReason string) error {

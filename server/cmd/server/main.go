@@ -35,12 +35,24 @@ func main() {
 	branchRepo := repository.NewBranchRepo(db)
 	menuRepo := repository.NewMenuRepo(db)
 	orderRepo := repository.NewOrderRepo(db)
+	notificationDeliveryRepo := repository.NewNotificationDeliveryRepo(db)
 	txRepo := repository.NewTransactionRepo(db)
+
+	// Telegram bot (runs in background)
+	log.Printf("Telegram bot token length: %d", len(cfg.TelegramBotToken))
+	bot, err := telegram.NewBot(cfg.TelegramBotToken, cfg.AppURL, userRepo, verifyRepo)
+	if err != nil {
+		log.Printf("Warning: telegram bot failed to start: %v", err)
+	} else {
+		go bot.Start()
+	}
 
 	// Services
 	authService := service.NewAuthService(storeRepo, staffRepo, userRepo, cfg.JWTSecret, cfg.TelegramBotToken)
 	orderService := service.NewOrderService(orderRepo, branchRepo, menuRepo, txRepo)
+	orderNotificationService := service.NewOrderNotificationService(branchRepo, orderRepo, notificationDeliveryRepo, bot)
 	permissionService := service.NewPermissionService()
+	orderNotificationService.StartDailySummaryScheduler(context.Background())
 
 	// WebSocket hub
 	hub := ws.NewHub()
@@ -107,15 +119,6 @@ func main() {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	// Telegram bot (runs in background)
-	log.Printf("Telegram bot token length: %d", len(cfg.TelegramBotToken))
-	bot, err := telegram.NewBot(cfg.TelegramBotToken, cfg.AppURL, userRepo, verifyRepo)
-	if err != nil {
-		log.Printf("Warning: telegram bot failed to start: %v", err)
-	} else {
-		go bot.Start()
-	}
-
 	// Handlers
 	handlers := &handler.Handlers{
 		Auth:   handler.NewAuthHandler(authService),
@@ -123,7 +126,7 @@ func main() {
 		Staff:  handler.NewStaffHandler(staffRepo, branchRepo, permissionService),
 		Store:  handler.NewStoreHandler(storeRepo, branchRepo, menuRepo),
 		Menu:   handler.NewMenuHandler(categoryRepo, itemRepo, modGroupRepo, modRepo, menuRepo, permissionService),
-		Order:  handler.NewOrderHandler(orderService, branchRepo, bot, hub),
+		Order:  handler.NewOrderHandler(orderService, orderNotificationService, branchRepo, bot, hub),
 	}
 
 	handler.SetupRoutes(e, handlers, hub, cfg.JWTSecret)
