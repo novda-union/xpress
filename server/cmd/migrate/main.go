@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/xpressgo/server/internal/config"
 	"github.com/xpressgo/server/internal/database"
@@ -34,16 +36,22 @@ func main() {
 		direction = os.Args[1]
 	}
 
+	suffix := "." + direction + ".sql"
+	entries, err := os.ReadDir("migrations")
+	if err != nil {
+		log.Fatalf("failed to read migrations directory: %v", err)
+	}
+
 	var files []string
-	if direction == "down" {
-		files = []string{
-			"migrations/000002_branches_and_permissions.down.sql",
-			"migrations/000001_init.down.sql",
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), suffix) {
+			files = append(files, filepath.Join("migrations", e.Name()))
 		}
-	} else {
-		files = []string{
-			"migrations/000001_init.up.sql",
-			"migrations/000002_branches_and_permissions.up.sql",
+	}
+	sort.Strings(files)
+	if direction == "down" {
+		for i, j := 0, len(files)-1; i < j; i, j = i+1, j-1 {
+			files[i], files[j] = files[j], files[i]
 		}
 	}
 
