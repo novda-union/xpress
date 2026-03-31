@@ -22,7 +22,7 @@ export function DiscoveryMap({ branches, center, selectedBranchId, visible, onSe
 
     mapRef.current = new maplibregl.Map({
       container: containerRef.current,
-      style: 'https://demotiles.maplibre.org/style.json',
+      style: 'https://tiles.openfreemap.org/styles/liberty',
       center: [center.lng, center.lat],
       zoom: 11.3,
       attributionControl: false,
