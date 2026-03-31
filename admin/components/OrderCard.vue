@@ -5,7 +5,7 @@
         <div>
           <span class="text-lg font-bold">#{{ order.order_number }}</span>
           <p class="mt-0.5 text-xs text-muted-foreground">
-            {{ formatTime(order.created_at) }} · {{ order.items.length }} item(s)
+            {{ formatTime(order.created_at) }} · {{ order.items?.length ?? 0 }} item(s)
           </p>
         </div>
         <Badge :class="statusClass" variant="secondary">{{ order.status.replace('_', ' ') }}</Badge>
@@ -16,7 +16,7 @@
       </p>
 
       <div class="mb-4 space-y-1 text-sm">
-        <div v-for="item in order.items" :key="item.id">
+        <div v-for="item in (order.items ?? [])" :key="item.id">
           <span class="font-medium">{{ item.quantity }}x {{ item.item_name }}</span>
           <span v-if="item.modifiers?.length" class="text-muted-foreground">
             ({{ item.modifiers.map((m: any) => m.modifier_name).join(', ') }})
@@ -51,8 +51,9 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import type { AdminOrder } from 'types/auth'
 
-const props = defineProps<{ order: any }>()
+const props = defineProps<{ order: AdminOrder }>()
 defineEmits(['accept', 'reject', 'mark-ready', 'picked-up'])
 
 const statusClass = computed(() => {

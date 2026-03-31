@@ -22,6 +22,7 @@ export default defineConfig([
     files: ['**/*.vue'],
     extends: [
       ...vue.configs['flat/recommended'],
+      ...tseslint.configs.recommended,
     ],
     languageOptions: {
       parser: vueParser,
@@ -38,6 +39,7 @@ export default defineConfig([
       'vue/multi-word-component-names': 'off',
       'vue/no-template-shadow': 'off',
       'vue/singleline-html-element-content-newline': 'off',
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   },
   {

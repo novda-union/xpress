@@ -51,8 +51,16 @@ const { api } = useApi()
 const saving = ref(false)
 const form = reactive({ name: '', description: '', address: '', phone: '', logo_url: '' })
 
+interface StoreSettings {
+  name: string
+  description: string
+  address: string
+  phone: string
+  logo_url: string
+}
+
 onMounted(async () => {
-  const store = await api<any>('/admin/store')
+  const store = await api<StoreSettings>('/admin/store')
   Object.assign(form, {
     address: store.address,
     description: store.description,

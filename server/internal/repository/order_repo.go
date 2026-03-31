@@ -165,11 +165,80 @@ func (r *OrderRepo) ListByScope(ctx context.Context, storeID string, branchID *s
 		); err != nil {
 			return nil, err
 		}
+		o.Items = []model.OrderItem{}
 		orders = append(orders, o)
 	}
-	if orders == nil {
-		orders = []model.Order{}
+	rows.Close()
+
+	if len(orders) == 0 {
+		return orders, nil
 	}
+
+	// Batch-load items for all orders in a single query
+	orderIDs := make([]string, len(orders))
+	for i, o := range orders {
+		orderIDs[i] = o.ID
+	}
+
+	itemRows, err := r.db.Query(ctx, `
+		SELECT id, order_id, item_id, item_name, item_price, quantity
+		FROM order_items WHERE order_id = ANY($1)
+	`, orderIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer itemRows.Close()
+
+	var allItemIDs []string
+	itemsByOrder := make(map[string][]model.OrderItem)
+	for itemRows.Next() {
+		var item model.OrderItem
+		if err := itemRows.Scan(&item.ID, &item.OrderID, &item.ItemID, &item.ItemName, &item.ItemPrice, &item.Quantity); err != nil {
+			return nil, err
+		}
+		item.Modifiers = []model.OrderItemModifier{}
+		itemsByOrder[item.OrderID] = append(itemsByOrder[item.OrderID], item)
+		allItemIDs = append(allItemIDs, item.ID)
+	}
+	itemRows.Close()
+
+	// Batch-load modifiers for all items
+	if len(allItemIDs) > 0 {
+		modRows, err := r.db.Query(ctx, `
+			SELECT id, order_item_id, modifier_id, modifier_name, price_adjustment
+			FROM order_item_modifiers WHERE order_item_id = ANY($1)
+		`, allItemIDs)
+		if err != nil {
+			return nil, err
+		}
+		defer modRows.Close()
+
+		modsByItem := make(map[string][]model.OrderItemModifier)
+		for modRows.Next() {
+			var mod model.OrderItemModifier
+			if err := modRows.Scan(&mod.ID, &mod.OrderItemID, &mod.ModifierID, &mod.ModifierName, &mod.PriceAdjustment); err != nil {
+				return nil, err
+			}
+			modsByItem[mod.OrderItemID] = append(modsByItem[mod.OrderItemID], mod)
+		}
+
+		for orderID, items := range itemsByOrder {
+			for j := range items {
+				if mods := modsByItem[items[j].ID]; len(mods) > 0 {
+					items[j].Modifiers = mods
+				}
+			}
+			itemsByOrder[orderID] = items
+		}
+	}
+
+	// Assign items to their respective orders
+	for i := range orders {
+		if items := itemsByOrder[orders[i].ID]; len(items) > 0 {
+			orders[i].Items = items
+		}
+	}
+
 	return orders, nil
 }
 

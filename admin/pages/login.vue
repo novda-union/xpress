@@ -55,13 +55,21 @@ const form = reactive({ storeCode: '', staffCode: '', password: '' })
 const error = ref('')
 const loading = ref(false)
 
+function getLoginErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  return 'Login failed'
+}
+
 async function handleLogin() {
   error.value = ''
   loading.value = true
   try {
     await login(form.storeCode, form.staffCode, form.password)
-  } catch (e: any) {
-    error.value = e?.data?.error || 'Login failed'
+  } catch (caughtError: unknown) {
+    error.value = getLoginErrorMessage(caughtError)
   } finally {
     loading.value = false
   }

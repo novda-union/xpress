@@ -16,12 +16,12 @@
       <SidebarGroup v-if="branchContext.isDirector.value" class="pb-0">
         <SidebarGroupLabel>Branch Context</SidebarGroupLabel>
         <SidebarGroupContent class="px-1">
-          <Select :model-value="branchContext.selectedBranchId.value ?? ''" @update:model-value="onBranchChange">
+          <Select :model-value="branchContext.selectedBranchId.value ?? '__all__'" @update:model-value="onBranchChange">
             <SelectTrigger class="w-full">
               <SelectValue placeholder="All Branches" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Branches</SelectItem>
+              <SelectItem value="__all__">All Branches</SelectItem>
               <SelectItem
                 v-for="branch in branchContext.branches.value"
                 :key="branch.id"
@@ -134,10 +134,14 @@ const initials = computed(() => {
 
 function isActive(to: string) {
   if (to === '/') return route.path === '/'
-  return route.path.startsWith(to)
+  if (route.path === to) return true
+  // Don't activate parent if a more-specific listed route matches exactly
+  const hasExactMatch = items.some((item) => item.to === route.path)
+  if (hasExactMatch) return false
+  return route.path.startsWith(to + '/')
 }
 
 function onBranchChange(value: AcceptableValue) {
-  branchContext.selectBranch(typeof value === 'string' && value.length > 0 ? value : null)
+  branchContext.selectBranch(typeof value === 'string' && value !== '__all__' ? value : null)
 }
 </script>
