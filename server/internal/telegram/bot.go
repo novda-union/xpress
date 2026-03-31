@@ -3,6 +3,7 @@ package telegram
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -64,13 +65,7 @@ func (b *Bot) Start() {
 }
 
 func (b *Bot) handleStart(msg *tgbotapi.Message) {
-	// Extract store slug from deep link parameter
-	slug := msg.CommandArguments()
-	if slug == "" {
-		slug = "demo-bar"
-	}
-
-	webAppURL := fmt.Sprintf("%s/%s", b.appURL, slug)
+	webAppURL := strings.TrimRight(b.appURL, "/")
 
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
