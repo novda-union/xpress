@@ -163,6 +163,53 @@ export interface CartMeta {
   bannerImageUrl: string
 }
 
+export interface DiscoverItem {
+  id: string
+  name: string
+  description: string
+  image_url: string
+  base_price: number
+  is_available: boolean
+  created_at: string
+  order_count: number
+  has_required_modifiers: boolean
+  branch_id: string
+  branch_name: string
+  branch_address: string
+  lat?: number | null
+  lng?: number | null
+  store_id: string
+  store_name: string
+  store_category: StoreCategory
+}
+
+export interface FeedSection {
+  title: string
+  type: 'new' | 'popular'
+  items: DiscoverItem[]
+}
+
+export interface FeedResponse {
+  sections: FeedSection[]
+}
+
+export interface ItemsPageResponse {
+  items: DiscoverItem[]
+  total: number
+  page: number
+  limit: number
+}
+
+export interface BranchCart {
+  branch: CartMeta
+  items: CartItem[]
+}
+
+export interface ItemDetailResponse {
+  item: MenuItem
+  branch: BranchDetail
+}
+
 export interface AuthUser {
   id: string
   telegram_id: number
