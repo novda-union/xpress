@@ -1,13 +1,13 @@
 import { Clock3, Minus, Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MenuHeader } from '../components/menu/MenuHeader'
 import { AppShell } from '../components/layout/AppShell'
-import { Button } from '@/components/ui/button'
+import { MenuHeader } from '../components/menu/MenuHeader'
 import { api } from '../lib/api'
 import { formatPrice } from '../lib/format'
 import { useCartStore } from '../store/cart'
 import type { Order } from '../types'
+import { Button } from '@/components/ui/button'
 
 const ETA_OPTIONS = [5, 10, 15, 20, 30]
 
@@ -17,8 +17,23 @@ export default function CartPage() {
   const [eta, setEta] = useState<number>(15)
   const [loading, setLoading] = useState(false)
 
+  const { carts, activeBranchId } = cart
+  const branchIds = Object.keys(carts)
+  const resolvedActiveBranchId =
+    activeBranchId && carts[activeBranchId] ? activeBranchId : branchIds[0] ?? null
+  const activeBranch = resolvedActiveBranchId ? carts[resolvedActiveBranchId] ?? null : null
+  const activeItems = activeBranch?.items ?? []
+  const activeCount = cart.activeBranchCount()
+  const activeTotal = cart.activeBranchTotal()
+
+  useEffect(() => {
+    if (resolvedActiveBranchId && resolvedActiveBranchId !== activeBranchId) {
+      cart.setActiveBranch(resolvedActiveBranchId)
+    }
+  }, [activeBranchId, cart, resolvedActiveBranchId])
+
   async function placeOrder() {
-    if (!cart.branch || cart.items.length === 0) {
+    if (!activeBranch || !resolvedActiveBranchId || activeItems.length === 0) {
       return
     }
 
@@ -28,10 +43,10 @@ export default function CartPage() {
       const order = await api<Order>('/orders', {
         method: 'POST',
         body: JSON.stringify({
-          branch_id: cart.branch.branchId,
+          branch_id: resolvedActiveBranchId,
           payment_method: 'pay_at_pickup',
           eta_minutes: eta,
-          items: cart.items.map((item) => ({
+          items: activeItems.map((item) => ({
             item_id: item.itemId,
             item_name: item.name,
             item_price: item.price,
@@ -44,7 +59,7 @@ export default function CartPage() {
           })),
         }),
       })
-      cart.clear()
+      cart.clearCart(resolvedActiveBranchId)
       navigate(`/order/${order.id}`)
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to place order')
@@ -53,27 +68,55 @@ export default function CartPage() {
     }
   }
 
-  if (!cart.branch || cart.items.length === 0) {
+  if (!activeBranch || activeItems.length === 0) {
     return (
-      <div className="min-h-screen px-4 pt-24 text-center">
-        <p className="text-lg font-semibold">Your cart is empty</p>
-        <p className="mt-2 text-sm text-[var(--tg-theme-hint-color)]">Pick something delicious from a branch nearby.</p>
-        <Button
-          type="button"
-          onClick={() => navigate('/')}
-          className="mt-6 rounded-full px-5"
-        >
-          Browse branches
-        </Button>
-      </div>
+      <AppShell header={<MenuHeader title="Cart" count={0} />}>
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+          <p className="text-[18px] font-semibold">Your cart is empty</p>
+          <p className="text-[14px] text-[var(--tg-theme-hint-color)]">
+            Browse the menu and add something delicious
+          </p>
+          <Button
+            type="button"
+            onClick={() => navigate('/')}
+            className="mt-2 rounded-[20px] px-6"
+          >
+            Browse Menu
+          </Button>
+        </div>
+      </AppShell>
     )
   }
 
   return (
-    <AppShell header={<MenuHeader title="Your Cart" count={cart.count()} />}>
-      <div className="px-4 pb-28 pt-4">
+    <AppShell header={<MenuHeader title="Cart" count={activeCount} />}>
+      {branchIds.length > 1 ? (
+        <div className="scrollbar-none flex gap-2 overflow-x-auto border-b border-[var(--xp-border)] px-4 py-3">
+          {branchIds.map((branchId) => {
+            const branchCart = carts[branchId]
+            const isActive = branchId === resolvedActiveBranchId
+
+            return (
+              <button
+                key={branchId}
+                type="button"
+                onClick={() => cart.setActiveBranch(branchId)}
+                className={`xp-pill whitespace-nowrap px-4 py-2 text-[13px] font-medium ${
+                  isActive
+                    ? 'bg-[var(--xp-brand)] text-white'
+                    : 'bg-[var(--xp-card-bg)] text-[var(--tg-theme-hint-color)]'
+                }`}
+              >
+                {branchCart.branch.branchName}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+
+      <div className="px-4 pb-36 pt-4">
         <div className="space-y-3">
-          {cart.items.map((item, index) => (
+          {activeItems.map((item, index) => (
             <div key={`${item.itemId}-${index}`} className="xp-card flex gap-3 p-4">
               <img
                 src={item.imageUrl || 'https://placehold.co/96x96?text=Item'}
@@ -92,7 +135,7 @@ export default function CartPage() {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    onClick={() => cart.removeItem(index)}
+                    onClick={() => cart.removeItem(resolvedActiveBranchId, index)}
                     className="h-8 w-8 text-[var(--tg-theme-hint-color)]"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -104,7 +147,13 @@ export default function CartPage() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => cart.updateQuantity(index, Math.max(1, item.quantity - 1))}
+                      onClick={() => {
+                        if (item.quantity <= 1) {
+                          cart.removeItem(resolvedActiveBranchId, index)
+                          return
+                        }
+                        cart.updateQuantity(resolvedActiveBranchId, index, item.quantity - 1)
+                      }}
                       className="h-7 w-7"
                     >
                       <Minus className="h-4 w-4" />
@@ -114,7 +163,7 @@ export default function CartPage() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => cart.updateQuantity(index, item.quantity + 1)}
+                      onClick={() => cart.updateQuantity(resolvedActiveBranchId, index, item.quantity + 1)}
                       className="h-7 w-7"
                     >
                       <Plus className="h-4 w-4" />
@@ -136,7 +185,9 @@ export default function CartPage() {
                 key={minutes}
                 onClick={() => setEta(minutes)}
                 className={`xp-pill flex shrink-0 items-center gap-2 px-4 text-sm font-medium ${
-                  eta === minutes ? 'bg-[var(--xp-brand)] text-white' : 'bg-[var(--xp-card-bg)] text-[var(--tg-theme-hint-color)]'
+                  eta === minutes
+                    ? 'bg-[var(--xp-brand)] text-white'
+                    : 'bg-[var(--xp-card-bg)] text-[var(--tg-theme-hint-color)]'
                 }`}
               >
                 <Clock3 className="h-4 w-4" />
@@ -149,7 +200,7 @@ export default function CartPage() {
         <div className="mt-6 border-t border-[var(--xp-border)] pt-4">
           <div className="flex items-center justify-between text-base font-semibold">
             <span>Subtotal</span>
-            <span>{formatPrice(cart.total())} UZS</span>
+            <span>{formatPrice(activeTotal)} UZS</span>
           </div>
         </div>
       </div>
@@ -167,7 +218,7 @@ export default function CartPage() {
               Placing order...
             </span>
           ) : (
-            `Place Order — ${formatPrice(cart.total())} UZS`
+            `Place Order — ${formatPrice(activeTotal)} UZS`
           )}
         </Button>
       </div>
