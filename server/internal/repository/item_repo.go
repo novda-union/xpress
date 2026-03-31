@@ -59,6 +59,18 @@ func (r *ItemRepo) GetByID(ctx context.Context, id, storeID string) (*model.Item
 	return i, nil
 }
 
+func (r *ItemRepo) GetByIDForBranch(ctx context.Context, id, branchID string) (*model.Item, error) {
+	i := &model.Item{}
+	err := r.db.QueryRow(ctx, `
+		SELECT id, category_id, store_id, branch_id, name, description, base_price, image_url, is_available, sort_order, created_at
+		FROM items WHERE id = $1 AND branch_id = $2
+	`, id, branchID).Scan(&i.ID, &i.CategoryID, &i.StoreID, &i.BranchID, &i.Name, &i.Description, &i.BasePrice, &i.ImageURL, &i.IsAvailable, &i.SortOrder, &i.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return i, nil
+}
+
 func (r *ItemRepo) Create(ctx context.Context, i *model.Item) error {
 	return r.db.QueryRow(ctx, `
 		INSERT INTO items (category_id, store_id, branch_id, name, description, base_price, image_url, sort_order)
