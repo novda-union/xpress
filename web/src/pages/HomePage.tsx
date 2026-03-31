@@ -2,14 +2,12 @@ import { lazy, Suspense } from 'react'
 import { UtensilsCrossed } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { PhoneGate } from '../components/auth/PhoneGate'
 import { AppShell } from '../components/layout/AppShell'
 import { BranchListCard } from '../components/discovery/BranchListCard'
 import { BranchSheet } from '../components/discovery/BranchSheet'
 import { CategoryTabs } from '../components/discovery/CategoryTabs'
 import { ViewToggle } from '../components/discovery/ViewToggle'
 import { useDiscovery } from '../hooks/useDiscovery'
-import { useTelegramAuth } from '../hooks/useTelegramAuth'
 import { useTelegramTheme } from '../hooks/useTelegramTheme'
 import { useUserLocation } from '../hooks/useUserLocation'
 import type { DiscoverBranch } from '../types'
@@ -24,7 +22,6 @@ export default function HomePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const storeSlug = searchParams.get('store')
-  const auth = useTelegramAuth()
   const location = useUserLocation()
   const discovery = useDiscovery(location.lat, location.lng)
   const [view, setView] = useState<'map' | 'list'>(storeSlug ? 'list' : 'map')
@@ -61,10 +58,6 @@ export default function HomePage() {
     ),
     [featuredStore, location.source, storeSlug],
   )
-
-  if (!auth.isAuthenticated) {
-    return <PhoneGate loading={auth.loading} error={auth.error} onRequestAccess={auth.requestAccess} />
-  }
 
   return (
     <>

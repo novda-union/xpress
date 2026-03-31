@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { useTelegramAuth } from './hooks/useTelegramAuth'
 
 const CartPage = lazy(() => import('./pages/CartPage'))
 const HomePage = lazy(() => import('./pages/HomePage'))
@@ -10,6 +11,8 @@ const BranchPage = lazy(() => import('./pages/BranchPage'))
 const StorePage = lazy(() => import('./pages/StorePage'))
 
 function App() {
+  useTelegramAuth()
+
   return (
     <BrowserRouter>
       <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}>

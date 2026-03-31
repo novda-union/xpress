@@ -6,7 +6,6 @@ import {
   mountMiniAppSync,
   mountThemeParamsSync,
   mountViewport,
-  requestContact,
   retrieveRawInitData,
 } from '@telegram-apps/sdk'
 
@@ -64,10 +63,3 @@ export function getTelegramColorScheme() {
   return window.Telegram?.WebApp?.colorScheme ?? 'light'
 }
 
-export async function requestTelegramContact() {
-  if (!requestContact.isAvailable()) {
-    throw new Error('Phone sharing is unavailable in this environment')
-  }
-  const result = await requestContact()
-  return result.contact.phone_number
-}

@@ -27,6 +27,7 @@ func main() {
 	storeRepo := repository.NewStoreRepo(db)
 	staffRepo := repository.NewStaffRepo(db)
 	userRepo := repository.NewUserRepo(db)
+	verifyRepo := repository.NewPhoneVerificationRepo(db)
 	categoryRepo := repository.NewCategoryRepo(db)
 	itemRepo := repository.NewItemRepo(db)
 	modGroupRepo := repository.NewModifierGroupRepo(db)
@@ -108,7 +109,7 @@ func main() {
 
 	// Telegram bot (runs in background)
 	log.Printf("Telegram bot token length: %d", len(cfg.TelegramBotToken))
-	bot, err := telegram.NewBot(cfg.TelegramBotToken, cfg.AppURL)
+	bot, err := telegram.NewBot(cfg.TelegramBotToken, cfg.AppURL, userRepo, verifyRepo)
 	if err != nil {
 		log.Printf("Warning: telegram bot failed to start: %v", err)
 	} else {
