@@ -121,12 +121,14 @@ func main() {
 
 	// Handlers
 	handlers := &handler.Handlers{
-		Auth:   handler.NewAuthHandler(authService),
-		Branch: handler.NewBranchHandler(branchRepo, menuRepo, permissionService),
-		Staff:  handler.NewStaffHandler(staffRepo, branchRepo, permissionService),
-		Store:  handler.NewStoreHandler(storeRepo, branchRepo, menuRepo),
-		Menu:   handler.NewMenuHandler(categoryRepo, itemRepo, modGroupRepo, modRepo, menuRepo, permissionService),
-		Order:  handler.NewOrderHandler(orderService, orderNotificationService, branchRepo, bot, hub),
+		Auth:     handler.NewAuthHandler(authService),
+		Branch:   handler.NewBranchHandler(branchRepo, menuRepo, permissionService),
+		Staff:    handler.NewStaffHandler(staffRepo, branchRepo, permissionService),
+		Store:    handler.NewStoreHandler(storeRepo, branchRepo, menuRepo),
+		Menu:     handler.NewMenuHandler(categoryRepo, itemRepo, modGroupRepo, modRepo, menuRepo, permissionService),
+		Order:    handler.NewOrderHandler(orderService, orderNotificationService, branchRepo, bot, hub),
+		Discover: handler.NewDiscoverHandler(itemRepo),
+		Item:     handler.NewItemHandler(itemRepo, modGroupRepo, modRepo, branchRepo),
 	}
 
 	handler.SetupRoutes(e, handlers, hub, cfg.JWTSecret)

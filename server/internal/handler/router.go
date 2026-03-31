@@ -7,12 +7,14 @@ import (
 )
 
 type Handlers struct {
-	Auth   *AuthHandler
-	Branch *BranchHandler
-	Staff  *StaffHandler
-	Store  *StoreHandler
-	Menu   *MenuHandler
-	Order  *OrderHandler
+	Auth     *AuthHandler
+	Branch   *BranchHandler
+	Staff    *StaffHandler
+	Store    *StoreHandler
+	Menu     *MenuHandler
+	Order    *OrderHandler
+	Discover *DiscoverHandler
+	Item     *ItemHandler
 }
 
 func SetupRoutes(e *echo.Echo, h *Handlers, hub *ws.Hub, jwtSecret string) {
@@ -21,8 +23,11 @@ func SetupRoutes(e *echo.Echo, h *Handlers, hub *ws.Hub, jwtSecret string) {
 	e.POST("/auth/dev", h.Auth.DevAuth) // Dev-only endpoint
 
 	e.GET("/discover", h.Branch.Discover)
+	e.GET("/discover/feed", h.Discover.Feed)
+	e.GET("/discover/items", h.Discover.Items)
 	e.GET("/branches/:id", h.Branch.GetByID)
 	e.GET("/branches/:id/menu", h.Branch.GetMenu)
+	e.GET("/items/:id", h.Item.GetByID)
 
 	e.GET("/stores/:slug", h.Store.GetBySlug)
 	e.GET("/stores/:slug/menu", h.Store.GetMenu)
