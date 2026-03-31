@@ -29,11 +29,11 @@ logs:
 
 migrate:
 	$(MAKE) wait-db
-	cd server && go run cmd/migrate/main.go
+	docker compose exec -T server ./migrate
 
 seed:
 	$(MAKE) wait-db
-	cd server && go run cmd/seed/main.go
+	docker compose exec -T server ./seed
 
 server:
 	cd server && go run cmd/server/main.go
