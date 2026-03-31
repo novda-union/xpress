@@ -1,9 +1,13 @@
 package telegram
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net"
+	"net/http"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -19,13 +23,38 @@ func NewBot(token, appURL string) (*Bot, error) {
 		return &Bot{appURL: appURL}, nil
 	}
 
-	api, err := tgbotapi.NewBotAPI(token)
+	api, err := tgbotapi.NewBotAPIWithClient(token, tgbotapi.APIEndpoint, newIPv4HTTPClient())
 	if err != nil {
 		return nil, fmt.Errorf("telegram: failed to create bot: %w", err)
 	}
 
 	log.Printf("telegram: authorized on account %s", api.Self.UserName)
 	return &Bot{api: api, appURL: appURL}, nil
+}
+
+func newIPv4HTTPClient() *http.Client {
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	transport.DialContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
+		var dialer net.Dialer
+		return dialer.DialContext(ctx, "tcp4", addr)
+	}
+
+	return &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: transport,
+	}
 }
 
 func (b *Bot) Start() {
