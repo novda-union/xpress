@@ -18,7 +18,7 @@ func NewItemRepo(db *pgxpool.Pool) *ItemRepo {
 
 func (r *ItemRepo) ListByCategory(ctx context.Context, categoryID, storeID string, branchID *string) ([]model.Item, error) {
 	query := `
-		SELECT id, category_id, store_id, branch_id, name, description, base_price, image_url, is_available, sort_order
+		SELECT id, category_id, store_id, branch_id, name, description, base_price, image_url, is_available, sort_order, created_at
 		FROM items WHERE category_id = $1 AND store_id = $2
 	`
 	args := []any{categoryID, storeID}
@@ -37,7 +37,7 @@ func (r *ItemRepo) ListByCategory(ctx context.Context, categoryID, storeID strin
 	var items []model.Item
 	for rows.Next() {
 		var i model.Item
-		if err := rows.Scan(&i.ID, &i.CategoryID, &i.StoreID, &i.BranchID, &i.Name, &i.Description, &i.BasePrice, &i.ImageURL, &i.IsAvailable, &i.SortOrder); err != nil {
+		if err := rows.Scan(&i.ID, &i.CategoryID, &i.StoreID, &i.BranchID, &i.Name, &i.Description, &i.BasePrice, &i.ImageURL, &i.IsAvailable, &i.SortOrder, &i.CreatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -48,9 +48,9 @@ func (r *ItemRepo) ListByCategory(ctx context.Context, categoryID, storeID strin
 func (r *ItemRepo) GetByID(ctx context.Context, id, storeID string) (*model.Item, error) {
 	i := &model.Item{}
 	err := r.db.QueryRow(ctx, `
-		SELECT id, category_id, store_id, branch_id, name, description, base_price, image_url, is_available, sort_order
+		SELECT id, category_id, store_id, branch_id, name, description, base_price, image_url, is_available, sort_order, created_at
 		FROM items WHERE id = $1 AND store_id = $2
-	`, id, storeID).Scan(&i.ID, &i.CategoryID, &i.StoreID, &i.BranchID, &i.Name, &i.Description, &i.BasePrice, &i.ImageURL, &i.IsAvailable, &i.SortOrder)
+	`, id, storeID).Scan(&i.ID, &i.CategoryID, &i.StoreID, &i.BranchID, &i.Name, &i.Description, &i.BasePrice, &i.ImageURL, &i.IsAvailable, &i.SortOrder, &i.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -97,11 +97,11 @@ func (r *ItemRepo) RequireOwnedByBranch(ctx context.Context, id, storeID, branch
 func (r *ItemRepo) GetByBranchAndName(ctx context.Context, branchID, name string) (*model.Item, error) {
 	item := &model.Item{}
 	err := r.db.QueryRow(ctx, `
-		SELECT id, category_id, store_id, branch_id, name, description, base_price, image_url, is_available, sort_order
+		SELECT id, category_id, store_id, branch_id, name, description, base_price, image_url, is_available, sort_order, created_at
 		FROM items
 		WHERE branch_id = $1 AND name = $2
 	`, branchID, name).Scan(
-		&item.ID, &item.CategoryID, &item.StoreID, &item.BranchID, &item.Name, &item.Description, &item.BasePrice, &item.ImageURL, &item.IsAvailable, &item.SortOrder,
+		&item.ID, &item.CategoryID, &item.StoreID, &item.BranchID, &item.Name, &item.Description, &item.BasePrice, &item.ImageURL, &item.IsAvailable, &item.SortOrder, &item.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
