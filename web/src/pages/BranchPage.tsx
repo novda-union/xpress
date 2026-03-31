@@ -71,7 +71,12 @@ export default function BranchPage() {
       header={<MenuHeader title={detail?.store.name ?? ''} count={cartCount} />}
       bottomBar={
         cartCount > 0 ? (
-          <CartBar count={cartCount} total={cartTotal} totalCartsCount={cart.totalCartsCount()} onOpen={() => navigate('/cart')} />
+          <CartBar
+            count={cartCount}
+            total={cartTotal}
+            totalCartsCount={cart.totalCartsCount()}
+            onOpen={() => navigate('/cart')}
+          />
         ) : null
       }
     >
