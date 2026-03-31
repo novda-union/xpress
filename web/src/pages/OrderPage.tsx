@@ -40,7 +40,15 @@ export default function OrderPage() {
   }
 
   if (!order) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    return (
+      <AppShell header={<MenuHeader title="Order" count={0} />}>
+        <div className="animate-pulse px-4 pt-6 space-y-4">
+          <div className="xp-card h-40 p-5" />
+          <div className="xp-card h-32 p-5" />
+          <div className="xp-card h-20 p-5" />
+        </div>
+      </AppShell>
+    )
   }
 
   const activeStep = STATUS_STEPS.indexOf(order.status)
