@@ -39,7 +39,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 
   if (!res.ok) {
     if (res.status === 401) {
-      localStorage.removeItem('xpressgo_token')
+      clearToken()
     }
     const error = await res.json().catch(() => ({ error: 'Request failed' }))
     throw new Error(error.error || 'Request failed')
