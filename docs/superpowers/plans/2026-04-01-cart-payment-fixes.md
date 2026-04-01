@@ -2,6 +2,32 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+---
+
+## HANDOFF STATUS (as of 2026-04-01)
+
+**Tasks 1–5 DONE and committed. Task 6 is the only remaining task.**
+
+| Task | Status | Commit |
+|---|---|---|
+| 1: Fix 401 token clear in api.ts | ✅ DONE | 930d38a → 92e20e3 |
+| 2: Update BranchCart type | ✅ DONE | 50e0fcc |
+| 3: Update cart store | ✅ DONE | 73b0b97 → c79b010 |
+| 4: Update CartPage | ✅ DONE | 8c708e6 |
+| 5: Cart icon in home header | ✅ DONE | eba29a3 |
+| 6: Admin payment method in OrderCard | ⏳ NOT STARTED | — |
+
+**HEAD SHA:** eba29a3
+
+**Pick up at:** Task 6 only. Two files: `admin/types/auth.ts` and `admin/components/OrderCard.vue`.
+
+**Known notes from code review:**
+- Task 3: the `migrate` fallback branch for `version >= STORAGE_VERSION` is unreachable dead code — not a bug, acceptable as-is
+- Task 4: `resolvedActiveBranchId` is typed `string | null` but passed to `setCartOptions` which expects `string` — safe at runtime due to the early-return guard, acceptable as-is
+- Task 5: cart icon only shows in list view, not map view — intentional per spec
+
+---
+
 **Goal:** Fix four issues in the customer mini app and admin panel: cart icon in home header, 401 unauthorized when placing orders, phantom carts from stale localStorage, and a per-cart payment method selector (cash/card) visible in both web and admin.
 
 **Architecture:** All changes are frontend-only. Types are updated first, then the Zustand store, then page components. The auth fix is in the shared `api.ts` utility. Admin changes are isolated to one type file and one component.
