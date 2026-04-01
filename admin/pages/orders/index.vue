@@ -1,12 +1,13 @@
 <template>
   <div class="space-y-6">
-    <div class="grid gap-4 xl:grid-cols-3">
-      <section class="space-y-3 rounded-xl border bg-muted/30 p-4 border-t-4 border-t-blue-500">
+    <div class="-mx-4 overflow-x-auto px-4 pb-2 lg:mx-0 lg:px-0">
+      <div class="flex min-w-max gap-4">
+        <section class="w-[20rem] shrink-0 space-y-3 rounded-xl border border-t-4 border-t-blue-500 bg-muted/30 p-3">
         <div class="flex items-center justify-between">
           <h3 class="font-semibold text-blue-700">New Orders</h3>
           <Badge class="bg-blue-100 text-blue-700 hover:bg-blue-100">{{ newOrders.length }}</Badge>
         </div>
-        <div class="space-y-3">
+        <div class="space-y-2.5">
           <OrderCard
             v-for="order in newOrders"
             :key="order.id"
@@ -16,16 +17,16 @@
             @accept="updateStatus(order.id, order.status === 'pending' ? 'accepted' : 'preparing', '', 'accept')"
             @reject="rejectOrder(order.id)"
           />
-          <p v-if="!newOrders.length" class="text-sm text-muted-foreground">No new orders.</p>
+          <p v-if="!newOrders.length" class="text-xs text-muted-foreground">No new orders.</p>
         </div>
-      </section>
+        </section>
 
-      <section class="space-y-3 rounded-xl border bg-muted/30 p-4 border-t-4 border-t-amber-500">
+        <section class="w-[20rem] shrink-0 space-y-3 rounded-xl border border-t-4 border-t-amber-500 bg-muted/30 p-3">
         <div class="flex items-center justify-between">
           <h3 class="font-semibold text-amber-700">Preparing</h3>
           <Badge class="bg-amber-100 text-amber-700 hover:bg-amber-100">{{ preparingOrders.length }}</Badge>
         </div>
-        <div class="space-y-3">
+        <div class="space-y-2.5">
           <OrderCard
             v-for="order in preparingOrders"
             :key="order.id"
@@ -34,16 +35,16 @@
             :loading-action="orderLoadingAction(order.id)"
             @mark-ready="updateStatus(order.id, 'ready', '', 'mark-ready')"
           />
-          <p v-if="!preparingOrders.length" class="text-sm text-muted-foreground">Nothing in preparation.</p>
+          <p v-if="!preparingOrders.length" class="text-xs text-muted-foreground">Nothing in preparation.</p>
         </div>
-      </section>
+        </section>
 
-      <section class="space-y-3 rounded-xl border bg-muted/30 p-4 border-t-4 border-t-green-500">
+        <section class="w-[20rem] shrink-0 space-y-3 rounded-xl border border-t-4 border-t-green-500 bg-muted/30 p-3">
         <div class="flex items-center justify-between">
           <h3 class="font-semibold text-green-700">Ready</h3>
           <Badge class="bg-green-100 text-green-700 hover:bg-green-100">{{ readyOrders.length }}</Badge>
         </div>
-        <div class="space-y-3">
+        <div class="space-y-2.5">
           <OrderCard
             v-for="order in readyOrders"
             :key="order.id"
@@ -52,9 +53,10 @@
             :loading-action="orderLoadingAction(order.id)"
             @picked-up="updateStatus(order.id, 'picked_up', '', 'picked-up')"
           />
-          <p v-if="!readyOrders.length" class="text-sm text-muted-foreground">No ready orders.</p>
+          <p v-if="!readyOrders.length" class="text-xs text-muted-foreground">No ready orders.</p>
         </div>
-      </section>
+        </section>
+      </div>
     </div>
   </div>
 </template>
