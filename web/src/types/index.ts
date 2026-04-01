@@ -203,6 +203,8 @@ export interface ItemsPageResponse {
 export interface BranchCart {
   branch: CartMeta
   items: CartItem[]
+  paymentMethod: 'cash' | 'card'
+  etaMinutes: number
 }
 
 export interface ItemDetailResponse {
