@@ -11,7 +11,9 @@
             v-for="order in newOrders"
             :key="order.id"
             :order="order"
-            @accept="updateStatus(order.id, order.status === 'pending' ? 'accepted' : 'preparing')"
+            :loading="isOrderLoading(order.id)"
+            :loading-action="orderLoadingAction(order.id)"
+            @accept="updateStatus(order.id, order.status === 'pending' ? 'accepted' : 'preparing', '', 'accept')"
             @reject="rejectOrder(order.id)"
           />
           <p v-if="!newOrders.length" class="text-sm text-muted-foreground">No new orders.</p>
@@ -24,7 +26,14 @@
           <Badge class="bg-amber-100 text-amber-700 hover:bg-amber-100">{{ preparingOrders.length }}</Badge>
         </div>
         <div class="space-y-3">
-          <OrderCard v-for="order in preparingOrders" :key="order.id" :order="order" @mark-ready="updateStatus(order.id, 'ready')" />
+          <OrderCard
+            v-for="order in preparingOrders"
+            :key="order.id"
+            :order="order"
+            :loading="isOrderLoading(order.id)"
+            :loading-action="orderLoadingAction(order.id)"
+            @mark-ready="updateStatus(order.id, 'ready', '', 'mark-ready')"
+          />
           <p v-if="!preparingOrders.length" class="text-sm text-muted-foreground">Nothing in preparation.</p>
         </div>
       </section>
@@ -35,7 +44,14 @@
           <Badge class="bg-green-100 text-green-700 hover:bg-green-100">{{ readyOrders.length }}</Badge>
         </div>
         <div class="space-y-3">
-          <OrderCard v-for="order in readyOrders" :key="order.id" :order="order" @picked-up="updateStatus(order.id, 'picked_up')" />
+          <OrderCard
+            v-for="order in readyOrders"
+            :key="order.id"
+            :order="order"
+            :loading="isOrderLoading(order.id)"
+            :loading-action="orderLoadingAction(order.id)"
+            @picked-up="updateStatus(order.id, 'picked_up', '', 'picked-up')"
+          />
           <p v-if="!readyOrders.length" class="text-sm text-muted-foreground">No ready orders.</p>
         </div>
       </section>
@@ -53,6 +69,7 @@ const branchContext = useBranchContext()
 const auth = useAuth()
 
 const orders = ref<AdminOrder[]>([])
+const loadingByOrderId = ref<Record<string, string | null>>({})
 
 const scopedOrders = computed(() => {
   if (auth.state.staff?.role === 'director' && branchContext.selectedBranchId.value) {
@@ -65,23 +82,52 @@ const newOrders = computed(() => scopedOrders.value.filter((order) => ['pending'
 const preparingOrders = computed(() => scopedOrders.value.filter((order) => order.status === 'preparing'))
 const readyOrders = computed(() => scopedOrders.value.filter((order) => order.status === 'ready'))
 
+function isOrderLoading(orderId: string) {
+  return Boolean(loadingByOrderId.value[orderId])
+}
+
+function orderLoadingAction(orderId: string) {
+  return loadingByOrderId.value[orderId] ?? null
+}
+
 async function loadOrders() {
   orders.value = await api<AdminOrder[]>('/admin/orders')
 }
 
-async function updateStatus(orderId: string, status: string, reason = '') {
-  await api(`/admin/orders/${orderId}/status`, {
-    method: 'PUT',
-    body: { status, reason },
-  })
-  await loadOrders()
+async function updateStatus(orderId: string, status: string, reason = '', action = 'update') {
+  if (loadingByOrderId.value[orderId]) {
+    return
+  }
+
+  loadingByOrderId.value = {
+    ...loadingByOrderId.value,
+    [orderId]: action,
+  }
+
+  try {
+    await api(`/admin/orders/${orderId}/status`, {
+      method: 'PUT',
+      body: { status, reason },
+    })
+    await loadOrders()
+  } finally {
+    const next = { ...loadingByOrderId.value }
+    delete next[orderId]
+    loadingByOrderId.value = next
+  }
 }
 
-function rejectOrder(orderId: string) {
-  const reason = window.prompt('Rejection reason:')
-  if (reason !== null) {
-    updateStatus(orderId, 'rejected', reason)
+async function rejectOrder(orderId: string) {
+  if (loadingByOrderId.value[orderId]) {
+    return
   }
+
+  const reason = window.prompt('Rejection reason:')
+  if (reason === null) {
+    return
+  }
+
+  await updateStatus(orderId, 'rejected', reason, 'reject')
 }
 
 onMounted(async () => {
