@@ -54,6 +54,7 @@ export interface AdminOrder {
   branch_id: string
   status: string
   total_price: number
+  payment_method: string
   eta_minutes: number
   created_at: string
   items: AdminOrderItem[]

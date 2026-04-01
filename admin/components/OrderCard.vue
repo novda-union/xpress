@@ -12,7 +12,7 @@
       </div>
 
       <p class="mb-3 text-sm text-muted-foreground">
-        ETA ~{{ order.eta_minutes }} min · Branch {{ order.branch_id.slice(0, 8) }}
+        ETA ~{{ order.eta_minutes }} min · Branch {{ order.branch_id.slice(0, 8) }} · {{ formatPayment(order.payment_method) }}
       </p>
 
       <div class="mb-4 space-y-1 text-sm">
@@ -85,5 +85,19 @@ function formatPrice(price: number) {
 
 function formatTime(dateStr: string) {
   return new Date(dateStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+}
+
+function formatPayment(method: string) {
+  if (method === 'cash') {
+    return 'Cash'
+  }
+  if (method === 'card') {
+    return 'Card'
+  }
+  return method
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ')
 }
 </script>
