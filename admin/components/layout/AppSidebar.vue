@@ -42,7 +42,7 @@
           <SidebarMenu>
             <SidebarMenuItem v-for="item in visibleItems" :key="item.to">
               <SidebarMenuButton as-child :is-active="isActive(item.to)" :tooltip="item.label">
-                <NuxtLink :to="item.to">
+                <NuxtLink :to="item.to" @click="closeSidebarAfterNavigation">
                   <component :is="item.icon" />
                   <span>{{ item.label }}</span>
                 </NuxtLink>
@@ -99,6 +99,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -108,6 +109,7 @@ const route = useRoute()
 const auth = useAuth()
 const permissions = usePermissions()
 const branchContext = useBranchContext()
+const sidebar = useSidebar()
 
 const items = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -139,6 +141,15 @@ function isActive(to: string) {
   const hasExactMatch = items.some((item) => item.to === route.path)
   if (hasExactMatch) return false
   return route.path.startsWith(to + '/')
+}
+
+function closeSidebarAfterNavigation() {
+  if (sidebar.isMobile.value) {
+    sidebar.setOpenMobile(false)
+    return
+  }
+
+  sidebar.setOpen(false)
 }
 
 function onBranchChange(value: AcceptableValue) {
