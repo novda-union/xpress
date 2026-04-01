@@ -14,7 +14,6 @@ const ETA_OPTIONS = [5, 10, 15, 20, 30]
 export default function CartPage() {
   const navigate = useNavigate()
   const cart = useCartStore()
-  const [eta, setEta] = useState<number>(15)
   const [loading, setLoading] = useState(false)
 
   const { carts, activeBranchId } = cart
@@ -25,6 +24,8 @@ export default function CartPage() {
   const activeItems = activeBranch?.items ?? []
   const activeCount = cart.activeBranchCount()
   const activeTotal = cart.activeBranchTotal()
+  const activePaymentMethod = activeBranch?.paymentMethod ?? 'cash'
+  const activeEtaMinutes = activeBranch?.etaMinutes ?? 15
 
   useEffect(() => {
     if (resolvedActiveBranchId && resolvedActiveBranchId !== activeBranchId) {
@@ -44,8 +45,8 @@ export default function CartPage() {
         method: 'POST',
         body: JSON.stringify({
           branch_id: resolvedActiveBranchId,
-          payment_method: 'pay_at_pickup',
-          eta_minutes: eta,
+          payment_method: activePaymentMethod,
+          eta_minutes: activeEtaMinutes,
           items: activeItems.map((item) => ({
             item_id: item.itemId,
             item_name: item.name,
@@ -177,15 +178,35 @@ export default function CartPage() {
         </div>
 
         <div className="mt-6">
+          <p className="mb-3 font-semibold">Payment</p>
+          <div className="flex gap-2">
+            {(['cash', 'card'] as const).map((method) => (
+              <button
+                type="button"
+                key={method}
+                onClick={() => cart.setCartOptions(resolvedActiveBranchId, { paymentMethod: method })}
+                className={`xp-pill flex shrink-0 items-center px-4 text-sm font-medium capitalize ${
+                  activePaymentMethod === method
+                    ? 'bg-[var(--xp-brand)] text-white'
+                    : 'bg-[var(--xp-card-bg)] text-[var(--tg-theme-hint-color)]'
+                }`}
+              >
+                {method}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6">
           <p className="mb-3 font-semibold">Arrive in</p>
           <div className="scrollbar-none flex gap-2 overflow-x-auto">
             {ETA_OPTIONS.map((minutes) => (
               <button
                 type="button"
                 key={minutes}
-                onClick={() => setEta(minutes)}
+                onClick={() => cart.setCartOptions(resolvedActiveBranchId, { etaMinutes: minutes })}
                 className={`xp-pill flex shrink-0 items-center gap-2 px-4 text-sm font-medium ${
-                  eta === minutes
+                  activeEtaMinutes === minutes
                     ? 'bg-[var(--xp-brand)] text-white'
                     : 'bg-[var(--xp-card-bg)] text-[var(--tg-theme-hint-color)]'
                 }`}
