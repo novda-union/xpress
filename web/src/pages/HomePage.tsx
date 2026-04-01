@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ShoppingBag } from 'lucide-react'
 import { BranchSheet } from '../components/discovery/BranchSheet'
 import { ViewToggle } from '../components/discovery/ViewToggle'
 import { DiscoverItemCard } from '../components/discovery/DiscoverItemCard'
@@ -154,11 +155,23 @@ export default function HomePage() {
 
       {view === 'list' ? (
         <div className="flex flex-col pb-28">
-          <div className="px-4 pb-4 pt-6">
-            <h1 className="text-[22px] font-bold">{greeting}</h1>
-            <p className="mt-1 text-[14px] text-[var(--tg-theme-hint-color)]">
-              What are you craving?
-            </p>
+          <div className="flex items-start justify-between px-4 pb-4 pt-6">
+            <div>
+              <h1 className="text-[22px] font-bold">{greeting}</h1>
+              <p className="mt-1 text-[14px] text-[var(--tg-theme-hint-color)]">
+                What are you craving?
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/cart')}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[var(--xp-card-bg)]"
+            >
+              <ShoppingBag size={22} />
+              {cart.totalCartsCount() > 0 ? (
+                <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-[var(--xp-brand)]" />
+              ) : null}
+            </button>
           </div>
 
           <div className="sticky top-0 z-10 bg-[var(--tg-theme-bg-color)]">
