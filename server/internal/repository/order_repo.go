@@ -71,11 +71,13 @@ func (r *OrderRepo) Create(ctx context.Context, o *model.Order) error {
 func (r *OrderRepo) GetByID(ctx context.Context, id string) (*model.Order, error) {
 	o := &model.Order{}
 	err := r.db.QueryRow(ctx, `
-		SELECT id, order_number, user_id, store_id, branch_id, status, total_price,
+		SELECT o.id, o.order_number, o.user_id, u.phone, o.store_id, o.branch_id, o.status, o.total_price,
 		       payment_method, payment_status, eta_minutes, rejection_reason, created_at, updated_at
-		FROM orders WHERE id = $1
+		FROM orders o
+		LEFT JOIN users u ON u.id = o.user_id
+		WHERE o.id = $1
 	`, id).Scan(
-		&o.ID, &o.OrderNumber, &o.UserID, &o.StoreID, &o.BranchID, &o.Status, &o.TotalPrice,
+		&o.ID, &o.OrderNumber, &o.UserID, &o.CustomerPhone, &o.StoreID, &o.BranchID, &o.Status, &o.TotalPrice,
 		&o.PaymentMethod, &o.PaymentStatus, &o.ETAMinutes, &o.RejectionReason, &o.CreatedAt, &o.UpdatedAt,
 	)
 	if err != nil {
@@ -136,9 +138,11 @@ func (r *OrderRepo) ListByStore(ctx context.Context, storeID string, status stri
 
 func (r *OrderRepo) ListByScope(ctx context.Context, storeID string, branchID *string, status string) ([]model.Order, error) {
 	query := `
-		SELECT id, order_number, user_id, store_id, branch_id, status, total_price,
+		SELECT o.id, o.order_number, o.user_id, u.phone, o.store_id, o.branch_id, o.status, o.total_price,
 		       payment_method, payment_status, eta_minutes, rejection_reason, created_at, updated_at
-		FROM orders WHERE store_id = $1
+		FROM orders o
+		LEFT JOIN users u ON u.id = o.user_id
+		WHERE o.store_id = $1
 	`
 	args := []any{storeID}
 	if branchID != nil && *branchID != "" {
@@ -161,7 +165,7 @@ func (r *OrderRepo) ListByScope(ctx context.Context, storeID string, branchID *s
 	for rows.Next() {
 		var o model.Order
 		if err := rows.Scan(
-			&o.ID, &o.OrderNumber, &o.UserID, &o.StoreID, &o.BranchID, &o.Status, &o.TotalPrice,
+			&o.ID, &o.OrderNumber, &o.UserID, &o.CustomerPhone, &o.StoreID, &o.BranchID, &o.Status, &o.TotalPrice,
 			&o.PaymentMethod, &o.PaymentStatus, &o.ETAMinutes, &o.RejectionReason, &o.CreatedAt, &o.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -245,9 +249,11 @@ func (r *OrderRepo) ListByScope(ctx context.Context, storeID string, branchID *s
 
 func (r *OrderRepo) ListByUser(ctx context.Context, userID string) ([]model.Order, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, order_number, user_id, store_id, branch_id, status, total_price,
-		       payment_method, payment_status, eta_minutes, rejection_reason, created_at, updated_at
-		FROM orders WHERE user_id = $1 ORDER BY created_at DESC
+		SELECT o.id, o.order_number, o.user_id, u.phone, o.store_id, o.branch_id, o.status, o.total_price,
+		       o.payment_method, o.payment_status, o.eta_minutes, o.rejection_reason, o.created_at, o.updated_at
+		FROM orders o
+		LEFT JOIN users u ON u.id = o.user_id
+		WHERE o.user_id = $1 ORDER BY o.created_at DESC
 	`, userID)
 	if err != nil {
 		return nil, err
@@ -258,7 +264,7 @@ func (r *OrderRepo) ListByUser(ctx context.Context, userID string) ([]model.Orde
 	for rows.Next() {
 		var o model.Order
 		if err := rows.Scan(
-			&o.ID, &o.OrderNumber, &o.UserID, &o.StoreID, &o.BranchID, &o.Status, &o.TotalPrice,
+			&o.ID, &o.OrderNumber, &o.UserID, &o.CustomerPhone, &o.StoreID, &o.BranchID, &o.Status, &o.TotalPrice,
 			&o.PaymentMethod, &o.PaymentStatus, &o.ETAMinutes, &o.RejectionReason, &o.CreatedAt, &o.UpdatedAt,
 		); err != nil {
 			return nil, err
