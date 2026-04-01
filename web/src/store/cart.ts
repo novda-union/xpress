@@ -27,6 +27,7 @@ interface CartStore {
   addItem: AddItem
   removeItem: RemoveItem
   updateQuantity: UpdateQuantity
+  setCartOptions: (branchId: string, options: { paymentMethod?: 'cash' | 'card'; etaMinutes?: number }) => void
   clear: () => void
   clearCart: (branchId: string) => void
   clearAll: () => void
@@ -38,7 +39,7 @@ interface CartStore {
   count: () => number
 }
 
-const STORAGE_VERSION = 3
+const STORAGE_VERSION = 4
 
 function recalculate(item: CartItem, quantity: number): CartItem {
   const modifierTotal = item.modifiers.reduce((sum, modifier) => sum + modifier.price, 0)
@@ -120,6 +121,8 @@ export const useCartStore = create<CartStore>()(
             [branch.branchId]: {
               branch,
               items: existing?.items ?? [],
+              paymentMethod: existing?.paymentMethod ?? 'cash',
+              etaMinutes: existing?.etaMinutes ?? 15,
             },
           }
 
@@ -127,6 +130,25 @@ export const useCartStore = create<CartStore>()(
             carts: nextCarts,
             activeBranchId: branch.branchId,
             ...withCompatState(nextCarts, branch.branchId),
+          }
+        })
+      },
+
+      setCartOptions: (branchId, options) => {
+        set((state) => {
+          const cart = state.carts[branchId]
+          if (!cart) return state
+
+          const nextCart: BranchCart = {
+            ...cart,
+            paymentMethod: options.paymentMethod ?? cart.paymentMethod,
+            etaMinutes: options.etaMinutes ?? cart.etaMinutes,
+          }
+
+          const nextCarts = { ...state.carts, [branchId]: nextCart }
+          return {
+            carts: nextCarts,
+            ...withCompatState(nextCarts, state.activeBranchId),
           }
         })
       },
@@ -150,6 +172,8 @@ export const useCartStore = create<CartStore>()(
             [branchMeta.branchId]: {
               branch: branchMeta,
               items: nextItems,
+              paymentMethod: existing?.paymentMethod ?? 'cash',
+              etaMinutes: existing?.etaMinutes ?? 15,
             },
           }
 
@@ -295,38 +319,15 @@ export const useCartStore = create<CartStore>()(
       count: () => get().activeBranchCount(),
     }),
     {
-      name: 'xpressgo-cart-v3',
+      name: 'xpressgo-cart-v4',
       version: STORAGE_VERSION,
       migrate: (persistedState, version) => {
         if (version < STORAGE_VERSION) {
-          const legacyState = persistedState as Partial<{
-            branch: CartMeta | null
-            items: CartItem[]
-          }>
-          const branch = legacyState.branch ?? null
-          const items = legacyState.items ?? []
-
-          if (!branch) {
-            return {
-              carts: {},
-              activeBranchId: null,
-              branch: null,
-              items: [],
-            }
-          }
-
-          const carts: Record<string, BranchCart> = {
-            [branch.branchId]: {
-              branch,
-              items,
-            },
-          }
-
           return {
-            carts,
-            activeBranchId: branch.branchId,
-            branch,
-            items,
+            carts: {},
+            activeBranchId: null,
+            branch: null,
+            items: [],
           }
         }
 
