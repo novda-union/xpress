@@ -72,7 +72,7 @@ func (r *OrderRepo) GetByID(ctx context.Context, id string) (*model.Order, error
 	o := &model.Order{}
 	err := r.db.QueryRow(ctx, `
 		SELECT o.id, o.order_number, o.user_id, u.phone, o.store_id, o.branch_id, o.status, o.total_price,
-		       payment_method, payment_status, eta_minutes, rejection_reason, created_at, updated_at
+		       o.payment_method, o.payment_status, o.eta_minutes, o.rejection_reason, o.created_at, o.updated_at
 		FROM orders o
 		LEFT JOIN users u ON u.id = o.user_id
 		WHERE o.id = $1
@@ -139,7 +139,7 @@ func (r *OrderRepo) ListByStore(ctx context.Context, storeID string, status stri
 func (r *OrderRepo) ListByScope(ctx context.Context, storeID string, branchID *string, status string) ([]model.Order, error) {
 	query := `
 		SELECT o.id, o.order_number, o.user_id, u.phone, o.store_id, o.branch_id, o.status, o.total_price,
-		       payment_method, payment_status, eta_minutes, rejection_reason, created_at, updated_at
+		       o.payment_method, o.payment_status, o.eta_minutes, o.rejection_reason, o.created_at, o.updated_at
 		FROM orders o
 		LEFT JOIN users u ON u.id = o.user_id
 		WHERE o.store_id = $1
@@ -153,7 +153,7 @@ func (r *OrderRepo) ListByScope(ctx context.Context, storeID string, branchID *s
 		args = append(args, status)
 		query += fmt.Sprintf(" AND status = $%d", len(args))
 	}
-	query += ` ORDER BY created_at DESC`
+	query += ` ORDER BY o.created_at DESC`
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
