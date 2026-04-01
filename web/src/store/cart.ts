@@ -319,7 +319,7 @@ export const useCartStore = create<CartStore>()(
       count: () => get().activeBranchCount(),
     }),
     {
-      name: 'xpressgo-cart-v4',
+      name: 'xpressgo-cart-v3',
       version: STORAGE_VERSION,
       migrate: (persistedState, version) => {
         if (version < STORAGE_VERSION) {
