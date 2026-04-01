@@ -124,6 +124,7 @@ func formatBranchOrderStatusMessage(branchName string, order *model.Order) strin
 	var lines []string
 	lines = append(lines, fmt.Sprintf("Order #%d at %s", order.OrderNumber, branchName))
 	lines = append(lines, fmt.Sprintf("Status: %s", formatOrderStatusLabel(order.Status)))
+	lines = append(lines, fmt.Sprintf("Phone: %s", formatCustomerPhone(order.CustomerPhone)))
 
 	if order.RejectionReason != "" {
 		lines = append(lines, fmt.Sprintf("Reason: %s", order.RejectionReason))
@@ -146,6 +147,14 @@ func formatBranchOrderStatusMessage(branchName string, order *model.Order) strin
 
 	lines = append(lines, fmt.Sprintf("Total: %s UZS", formatPrice(order.TotalPrice)))
 	return strings.Join(lines, "\n")
+}
+
+func formatCustomerPhone(phone string) string {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return "not provided"
+	}
+	return phone
 }
 
 func formatBranchDailySummaryMessage(summary *model.BranchDailyOrderSummary) string {
